@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <title>Go WebSocket Tutorial</title>
+</head>
+<body>
+<h2>AwesomeChat</h2>
+
+<div id="chatContainer" style="display: none;">
+    <div id="incomingMessages"></div>
+    <input type="text" id="messageInput" placeholder="Введите сообщение"/>
+    <button onclick="sendMessage()">Отправить сообщение</button>
+</div>
+
+<input type="text" id="connectionInput" placeholder="Введите номер чата"/>
+<button onclick="connectToChat()">Присоединиться к чату с номером</button>
+
+<script>
+    // Глобальная переменная для хранения объекта WebSocket
+    let socket;
+    // Переменная для хранения последнего входящего сообщения
+    let lastIncomingMessage = "";
+
+    // Обработчик событий для отправки сообщения
+    function sendMessage() {
+        const messageInput = document.getElementById("messageInput");
+        const message = messageInput.value;
+
+        // Проверка, что сообщение не пустое
+        if (message.trim() !== "") {
+            // Отправка сообщения на сервер
+            socket.send(message);
+
+            // Очистка поля ввода после отправки
+            messageInput.value = "";
+        }
+    }
+
+    function connectToChat() {
+        const connectionInput = document.getElementById("connectionInput");
+        const number = connectionInput.value;
+
+        // Проверка, что номер чата не пустой
+        if (number.trim() !== "") {
+            // Отправка номера чата на сервер через HTTP-запрос
+            fetch('http://127.0.0.1:8080/connect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ chatNumber: parseInt(number) }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // При успешном ответе от сервера, устанавливаем WebSocket-соединение
+                    if (data.success) {
+                        // Показываем окно для отправки и отображения сообщений
+                        document.getElementById("chatContainer").style.display = "block";
+
+                        // Создаем WebSocket-соединение с номером чата
+                        socket = new WebSocket("ws://127.0.0.1:8080/chatroom/" + number);
+                        console.log("Attempting Connection...");
+
+                        socket.onopen = () => {
+                            console.log("Successfully Connected");
+                            //socket.send("Hi From the Client!");
+                        };
+
+                        socket.onclose = event => {
+                            console.log("Socket Closed Connection: ", event);
+                            socket.send("Client Closed!");
+                        };
+
+                        socket.onerror = error => {
+                            console.log("Socket Error: ", error);
+                        };
+
+                        socket.onmessage = function (e) {
+                            console.log("Server: " + e.data + "\n");
+
+                            // Сохраняем последнее входящее сообщение
+                            lastIncomingMessage = e.data;
+
+                            // Обновляем отображение входящих сообщений
+                            updateIncomingMessages();
+                        };
+
+                    } else {
+                        console.error("Failed to connect to chat:", data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error connecting to chat:", error);
+                });
+
+            // Очистка поля ввода после отправки
+            connectionInput.value = "";
+        }
+    }
+
+    // Функция для обновления отображения входящих сообщений
+    function updateIncomingMessages() {
+        // Очищаем содержимое div с входящими сообщениями
+        document.getElementById("incomingMessages").innerHTML = "";
+
+        // Добавляем новое входящее сообщение
+        const incomingMessagesDiv = document.getElementById("incomingMessages");
+        const messageDiv = document.createElement("div");
+        messageDiv.textContent = lastIncomingMessage;
+        incomingMessagesDiv.appendChild(messageDiv);
+    }
+</script>
+</body>
+</html>
