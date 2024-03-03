@@ -2,6 +2,7 @@ package main
 
 import (
 	"awesomeChat1/package/logger"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -44,6 +45,11 @@ type User struct {
 type Room struct {
 	Number int
 	Users  []*User
+}
+
+type Message struct {
+	Type    string `json:"type"`
+	Content []byte `json:"content"`
 }
 
 func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {
@@ -99,6 +105,7 @@ func reader(conn *websocket.Conn, room *Room) {
 			}
 		}
 	}()
+
 	for {
 		_, p, err := conn.ReadMessage()
 		if err != nil {
@@ -108,12 +115,17 @@ func reader(conn *websocket.Conn, room *Room) {
 		}
 		logger.Log.Traceln("Received message:", string(p))
 
+		var receivedMessage Message
+		err = json.Unmarshal(p, &receivedMessage)
+
 		// отправить сообщение всем пользователям в комнате, кроме отправителя
-		for _, user := range room.Users {
-			if user.Connection != conn {
-				err := user.Connection.WriteMessage(websocket.TextMessage, p)
-				if err != nil {
-					logger.Log.Errorln(err)
+		if receivedMessage.Type == "usual" {
+			for _, user := range room.Users {
+				if user.Connection != conn {
+					err = user.Connection.WriteMessage(websocket.TextMessage, p)
+					if err != nil {
+						logger.Log.Errorln(err)
+					}
 				}
 			}
 		}

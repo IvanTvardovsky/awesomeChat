@@ -4,25 +4,57 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
-    <title>Go WebSocket Tutorial</title>
-</head>
-<body>
-<h2>AwesomeChat</h2>
+    <title>AwesomeChat</title>
+    <link rel="stylesheet" href="styles.css">
 
-<div id="chatContainer" style="display: none;">
-    <div id="incomingMessages"></div>
-    <input type="text" id="messageInput" placeholder="Введите сообщение"/>
-    <button onclick="sendMessage()">Отправить сообщение</button>
+    <!-- Подключение Bootstrap для стилей -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+
+</head>
+<body class="container mt-5">
+
+<!-- Окно чата с сохранением истории -->
+<div id="chatContainer" style="display: none; height: 80vh;">
+
+    <!-- Окно чата с сохранением истории -->
+    <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+        <div class="card-header">
+            AwesomeChat
+        </div>
+        <div class="card-body" style="flex-grow: 1; overflow-y: auto;" id="incomingMessagesContainer">
+            <div class="message-container" id="incomingMessages"></div>
+        </div>
+        <div class="card-footer">
+            <input type="text" class="form-control" id="messageInput" placeholder="Введите сообщение"/>
+            <button class="btn btn-primary mt-2" onclick="sendMessage()">Отправить сообщение</button>
+        </div>
+    </div>
 </div>
 
-<input type="text" id="connectionInput" placeholder="Введите номер чата"/>
-<button onclick="connectToChat()">Присоединиться к чату с номером</button>
+<!-- Поля ввода и кнопка для присоединения к чату -->
+<div class="mt-3">
+    <input type="text" class="form-control" id="connectionInput" placeholder="Введите номер чата"/>
+    <button class="btn btn-success mt-2" onclick="connectToChat()">Присоединиться к чату с номером</button>
+</div>
+
+<!-- Подключение Bootstrap и jQuery для работы с Bootstrap JavaScript -->
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+        integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+        integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+        crossorigin="anonymous"></script>
 
 <script>
     // Глобальная переменная для хранения объекта WebSocket
     let socket;
-    // Переменная для хранения последнего входящего сообщения
-    let lastIncomingMessage = "";
+    // Массив для хранения истории входящих сообщений
+    let messageHistory = [];
 
     // Обработчик событий для отправки сообщения
     function sendMessage() {
@@ -32,7 +64,12 @@
         // Проверка, что сообщение не пустое
         if (message.trim() !== "") {
             // Отправка сообщения на сервер
-            socket.send(message);
+            const jsonMessage = JSON.stringify({
+                type: "usual",
+                content: message
+            });
+
+            socket.send(jsonMessage);
 
             // Очистка поля ввода после отправки
             messageInput.value = "";
@@ -45,56 +82,42 @@
 
         // Проверка, что номер чата не пустой
         if (number.trim() !== "") {
-            // Отправка номера чата на сервер через HTTP-запрос
-            fetch('http://127.0.0.1:8080/connect', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ chatNumber: parseInt(number) }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    // При успешном ответе от сервера, устанавливаем WebSocket-соединение
-                    if (data.success) {
-                        // Показываем окно для отправки и отображения сообщений
-                        document.getElementById("chatContainer").style.display = "block";
+            // Отправка номера чата на сервер через WebSocket
+            socket = new WebSocket("ws://127.0.0.1:8080/chatroom/" + number);
+            console.log("Attempting Connection...");
 
-                        // Создаем WebSocket-соединение с номером чата
-                        socket = new WebSocket("ws://127.0.0.1:8080/chatroom/" + number);
-                        console.log("Attempting Connection...");
+            socket.onopen = () => {
+                console.log("Successfully Connected");
+            };
 
-                        socket.onopen = () => {
-                            console.log("Successfully Connected");
-                            //socket.send("Hi From the Client!");
-                        };
+            socket.onclose = event => {
+                console.log("Socket Closed Connection: ", event);
+            };
 
-                        socket.onclose = event => {
-                            console.log("Socket Closed Connection: ", event);
-                            socket.send("Client Closed!");
-                        };
+            socket.onerror = error => {
+                console.log("Socket Error: ", error);
+            };
 
-                        socket.onerror = error => {
-                            console.log("Socket Error: ", error);
-                        };
+            socket.onmessage = function (e) {
+                console.log("Server: " + e.data + "\n");
 
-                        socket.onmessage = function (e) {
-                            console.log("Server: " + e.data + "\n");
+                // Парсим JSON-строку в объект
+                const messageObj = JSON.parse(e.data);
 
-                            // Сохраняем последнее входящее сообщение
-                            lastIncomingMessage = e.data;
+                // Обрабатываем разные типы сообщений
+                if (messageObj.type === "usual") {
+                    // Добавляем сообщение в историю
+                    messageHistory.push(messageObj.content);
 
-                            // Обновляем отображение входящих сообщений
-                            updateIncomingMessages();
-                        };
+                    // Обновляем отображение входящих сообщений
+                    updateIncomingMessages();
+                } else {
+                    console.error("Неизвестный тип сообщения:", messageObj.type);
+                }
+            };
 
-                    } else {
-                        console.error("Failed to connect to chat:", data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error("Error connecting to chat:", error);
-                });
+            // Показываем окно для отправки и отображения сообщений
+            document.getElementById("chatContainer").style.display = "block";
 
             // Очистка поля ввода после отправки
             connectionInput.value = "";
@@ -103,15 +126,23 @@
 
     // Функция для обновления отображения входящих сообщений
     function updateIncomingMessages() {
-        // Очищаем содержимое div с входящими сообщениями
-        document.getElementById("incomingMessages").innerHTML = "";
-
-        // Добавляем новое входящее сообщение
+        // Получаем div для истории сообщений
         const incomingMessagesDiv = document.getElementById("incomingMessages");
-        const messageDiv = document.createElement("div");
-        messageDiv.textContent = lastIncomingMessage;
-        incomingMessagesDiv.appendChild(messageDiv);
+
+        // Очищаем содержимое div
+        incomingMessagesDiv.innerHTML = "";
+
+        // Добавляем новые сообщения в конец div в обратном порядке
+        for (let i = messageHistory.length - 1; i >= 0; i--) {
+            const messageDiv = document.createElement("div");
+            messageDiv.textContent = messageHistory[i];
+            incomingMessagesDiv.appendChild(messageDiv);
+        }
+
+        // Прокручиваем контейнер вниз
+        incomingMessagesDiv.scrollTop = incomingMessagesDiv.scrollHeight;
     }
+
 </script>
 </body>
 </html>

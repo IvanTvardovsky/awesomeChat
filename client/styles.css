@@ -1,0 +1,26 @@
+.message-container {
+    display: flex;
+    flex-direction: column-reverse; /* Сообщения появляются снизу и уходят вверх */
+}
+
+#chatContainer {
+    display: none;
+    height: 80vh;
+}
+
+.card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse; /* Обратный порядок сообщений */
+}
+
+.user-message {
+    color: blue
+}
