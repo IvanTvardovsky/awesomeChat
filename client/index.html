@@ -10,20 +10,16 @@
     <!-- Подключение Bootstrap для стилей -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
           integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-
-
 </head>
 <body class="container mt-5">
 
 <!-- Окно чата с сохранением истории -->
-<div id="chatContainer" style="display: none; height: 80vh;">
-
-    <!-- Окно чата с сохранением истории -->
-    <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+<div id="chatContainer">
+    <div class="card">
         <div class="card-header">
             AwesomeChat
         </div>
-        <div class="card-body" style="flex-grow: 1; overflow-y: auto;" id="incomingMessagesContainer">
+        <div class="card-body" id="incomingMessagesContainer">
             <div class="message-container" id="incomingMessages"></div>
         </div>
         <div class="card-footer">
@@ -39,7 +35,7 @@
     <button class="btn btn-success mt-2" onclick="connectToChat()">Присоединиться к чату с номером</button>
 </div>
 
-<!-- Подключение Bootstrap и jQuery для работы с Bootstrap JavaScript -->
+<!-- Подключение Bootstrap -->
 <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
         integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
         crossorigin="anonymous"></script>
@@ -50,99 +46,7 @@
         integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
         crossorigin="anonymous"></script>
 
-<script>
-    // Глобальная переменная для хранения объекта WebSocket
-    let socket;
-    // Массив для хранения истории входящих сообщений
-    let messageHistory = [];
+<script src="script.js"></script>
 
-    // Обработчик событий для отправки сообщения
-    function sendMessage() {
-        const messageInput = document.getElementById("messageInput");
-        const message = messageInput.value;
-
-        // Проверка, что сообщение не пустое
-        if (message.trim() !== "") {
-            // Отправка сообщения на сервер
-            const jsonMessage = JSON.stringify({
-                type: "usual",
-                content: message
-            });
-
-            socket.send(jsonMessage);
-
-            // Очистка поля ввода после отправки
-            messageInput.value = "";
-        }
-    }
-
-    function connectToChat() {
-        const connectionInput = document.getElementById("connectionInput");
-        const number = connectionInput.value;
-
-        // Проверка, что номер чата не пустой
-        if (number.trim() !== "") {
-            // Отправка номера чата на сервер через WebSocket
-            socket = new WebSocket("ws://127.0.0.1:8080/chatroom/" + number);
-            console.log("Attempting Connection...");
-
-            socket.onopen = () => {
-                console.log("Successfully Connected");
-            };
-
-            socket.onclose = event => {
-                console.log("Socket Closed Connection: ", event);
-            };
-
-            socket.onerror = error => {
-                console.log("Socket Error: ", error);
-            };
-
-            socket.onmessage = function (e) {
-                console.log("Server: " + e.data + "\n");
-
-                // Парсим JSON-строку в объект
-                const messageObj = JSON.parse(e.data);
-
-                // Обрабатываем разные типы сообщений
-                if (messageObj.type === "usual") {
-                    // Добавляем сообщение в историю
-                    messageHistory.push(messageObj.content);
-
-                    // Обновляем отображение входящих сообщений
-                    updateIncomingMessages();
-                } else {
-                    console.error("Неизвестный тип сообщения:", messageObj.type);
-                }
-            };
-
-            // Показываем окно для отправки и отображения сообщений
-            document.getElementById("chatContainer").style.display = "block";
-
-            // Очистка поля ввода после отправки
-            connectionInput.value = "";
-        }
-    }
-
-    // Функция для обновления отображения входящих сообщений
-    function updateIncomingMessages() {
-        // Получаем div для истории сообщений
-        const incomingMessagesDiv = document.getElementById("incomingMessages");
-
-        // Очищаем содержимое div
-        incomingMessagesDiv.innerHTML = "";
-
-        // Добавляем новые сообщения в конец div в обратном порядке
-        for (let i = messageHistory.length - 1; i >= 0; i--) {
-            const messageDiv = document.createElement("div");
-            messageDiv.textContent = messageHistory[i];
-            incomingMessagesDiv.appendChild(messageDiv);
-        }
-
-        // Прокручиваем контейнер вниз
-        incomingMessagesDiv.scrollTop = incomingMessagesDiv.scrollHeight;
-    }
-
-</script>
 </body>
 </html>
