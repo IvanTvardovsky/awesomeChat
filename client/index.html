@@ -23,7 +23,7 @@
             <div class="message-container" id="incomingMessages"></div>
         </div>
         <div class="card-footer">
-            <input type="text" class="form-control" id="messageInput" placeholder="Введите сообщение"/>
+            <input type="text" class="form-control" id="messageInput" placeholder="Введите сообщение" onkeypress="handleKeyPress(event)"/>
             <button class="btn btn-primary mt-2" onclick="sendMessage()">Отправить сообщение</button>
         </div>
     </div>
@@ -32,7 +32,7 @@
 <!-- Поля ввода и кнопка для присоединения к чату -->
 <div class="mt-3">
     <input type="text" class="form-control" id="connectionInput" placeholder="Введите номер чата"/>
-    <button class="btn btn-success mt-2" onclick="connectToChat()">Присоединиться к чату с номером</button>
+    <button class="btn btn-success mt-2" onclick="connectToChat()">Присоединиться к чату</button>
 </div>
 
 <!-- Подключение Bootstrap -->

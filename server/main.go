@@ -48,8 +48,9 @@ type Room struct {
 }
 
 type Message struct {
-	Type    string `json:"type"`
-	Content []byte `json:"content"`
+	Type     string `json:"type"`
+	Content  []byte `json:"content"`
+	Username string `json:"username"`
 }
 
 func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {

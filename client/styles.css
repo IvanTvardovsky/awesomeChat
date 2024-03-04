@@ -22,5 +22,8 @@
 }
 
 .user-message {
-    color: blue
+    background-color: #cce5ff; /* Цвет фона для сообщений пользователя */
+    border-radius: 5px;
+    padding: 5px;
+    margin-bottom: 5px;
 }

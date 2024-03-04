@@ -13,10 +13,20 @@ function sendMessage() {
         // Отправка сообщения на сервер
         const jsonMessage = JSON.stringify({
             type: "usual",
-            content: message
+            content: message,
+            username: "we will make username later to server"
         });
 
         socket.send(jsonMessage);
+
+        // Добавляем сообщение и информацию об отправителе в историю
+        messageHistory.push({
+            content: message,
+            username: "we will make username later to client"
+        });
+
+        // Обновляем отображение входящих сообщений
+        updateIncomingMessages();
 
         // Очистка поля ввода после отправки
         messageInput.value = "";
@@ -53,8 +63,11 @@ function connectToChat() {
 
             // Обрабатываем разные типы сообщений
             if (messageObj.type === "usual") {
-                // Добавляем сообщение в историю
-                messageHistory.push(messageObj.content);
+                // Добавляем сообщение и информацию об отправителе в историю
+                messageHistory.push({
+                    content: messageObj.content,
+                    username: messageObj.username
+                });
 
                 // Обновляем отображение входящих сообщений
                 updateIncomingMessages();
@@ -82,10 +95,19 @@ function updateIncomingMessages() {
     // Добавляем новые сообщения в конец div в обратном порядке
     for (let i = messageHistory.length - 1; i >= 0; i--) {
         const messageDiv = document.createElement("div");
-        messageDiv.textContent = messageHistory[i];
+        messageDiv.textContent = `${messageHistory[i].username}: ${messageHistory[i].content}`;
         incomingMessagesDiv.appendChild(messageDiv);
     }
 
     // Прокручиваем контейнер вниз
     incomingMessagesDiv.scrollTop = incomingMessagesDiv.scrollHeight;
+}
+
+// Отправка сообщения при нажатии Enter
+function handleKeyPress(event) {
+    // Проверяем, является ли клавиша Enter
+    if (event.key === "Enter") {
+        // Вызываем функцию отправки сообщения
+        sendMessage();
+    }
 }
