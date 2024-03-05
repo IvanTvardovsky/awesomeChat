@@ -1,0 +1,13 @@
+---
+
+listen:
+  bind_ip: 0.0.0.0
+  port: 8080
+storage:
+  host: localhost
+  port: 5432
+  database: awesomeChat
+  username: postgres
+  password: bebra123
+authorization:
+  key: a-big-secret

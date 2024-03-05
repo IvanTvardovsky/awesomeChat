@@ -71,6 +71,13 @@ function connectToChat() {
 
                 // Обновляем отображение входящих сообщений
                 updateIncomingMessages();
+            } else if (messageObj.type === "userLeft") {
+                const decodedContent = atob(messageObj.content);
+                messageHistory.push({
+                    content: "",
+                    username: decodedContent  // костыль для выделения жирным
+                });
+                updateIncomingMessages();
             } else {
                 console.error("Неизвестный тип сообщения:", messageObj.type);
             }
@@ -79,7 +86,6 @@ function connectToChat() {
         // Показываем окно для отправки и отображения сообщений
         document.getElementById("chatContainer").style.display = "block";
 
-        // Очистка поля ввода после отправки
         connectionInput.value = "";
     }
 }
@@ -95,7 +101,15 @@ function updateIncomingMessages() {
     // Добавляем новые сообщения в конец div в обратном порядке
     for (let i = messageHistory.length - 1; i >= 0; i--) {
         const messageDiv = document.createElement("div");
-        messageDiv.textContent = `${messageHistory[i].username}: ${messageHistory[i].content}`;
+        const usernameSpan = document.createElement("span");
+        usernameSpan.textContent = messageHistory[i].username;
+        usernameSpan.style.fontWeight = "bold";
+        messageDiv.appendChild(usernameSpan);
+        // Добавляем текст сообщения после имени пользователя
+        if (messageHistory[i].content !== "") {
+            messageDiv.innerHTML += `: ${messageHistory[i].content}`;
+        }
+
         incomingMessagesDiv.appendChild(messageDiv);
     }
 
@@ -105,9 +119,34 @@ function updateIncomingMessages() {
 
 // Отправка сообщения при нажатии Enter
 function handleKeyPress(event) {
-    // Проверяем, является ли клавиша Enter
     if (event.key === "Enter") {
-        // Вызываем функцию отправки сообщения
         sendMessage();
     }
 }
+function performLogin() {
+    const loginInput = document.getElementById("loginInput").value;
+    const passwordInput = document.getElementById("passwordInput").value;
+
+    // Выполните здесь процесс аутентификации, например, отправку данных на сервер
+
+    document.getElementById("loginContainer").style.display = "none";
+    document.getElementById("chooseRoomContainer").style.display = "block";
+    //document.getElementById("chatContainer").style.display = "block";
+
+}
+
+function performRegistration() {
+    const loginInput = document.getElementById("loginInputRegistration").value;
+    const passwordInput = document.getElementById("passwordInputRegistration").value;
+}
+
+function goToRegistration() {
+    document.getElementById("loginContainer").style.display = "none";
+    document.getElementById("registrationContainer").style.display = "block";
+}
+
+function goToLogin() {
+    document.getElementById("loginContainer").style.display = "block";
+    document.getElementById("registrationContainer").style.display = "none";
+}
+

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"awesomeChat1/internal/config"
+	"awesomeChat1/package/database"
 	"awesomeChat1/package/logger"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -97,14 +100,38 @@ func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {
 	go reader(ws, room)
 }
 
+func informUserLeft(room *Room, username string) {
+	msg := Message{
+		Type:     "userLeft",
+		Content:  []byte(username + " left the chatroom"),
+		Username: "default",
+	}
+
+	messageToSend, err := json.Marshal(msg)
+	if err != nil {
+		logger.Log.Errorln(err)
+	}
+	logger.Log.Traceln("Sending:", string(messageToSend))
+
+	for _, user := range room.Users {
+		err = user.Connection.WriteMessage(websocket.TextMessage, messageToSend)
+		if err != nil {
+			logger.Log.Errorln(err)
+		}
+	}
+}
+
 func reader(conn *websocket.Conn, room *Room) {
+	var leftUser string
 	defer func() {
 		for i, user := range room.Users {
 			if user.Connection == conn {
 				room.Users = append(room.Users[:i], room.Users[i+1:]...)
-				return
+				leftUser = user.Name
+				break
 			}
 		}
+		informUserLeft(room, leftUser)
 	}()
 
 	for {
@@ -170,6 +197,16 @@ func connectToChatroom(c *gin.Context, rooms *map[int]*Room) {
 }
 
 func main() {
+	cfg := config.GetConfig()
+	db := database.Init(cfg)
+
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			logger.Log.Errorln("Error closing database: " + err.Error())
+		}
+	}(db)
+
 	logger.Log.Infoln("Starting service...")
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
@@ -188,5 +225,6 @@ func main() {
 	})
 
 	logger.Log.Info("Starting router...")
-	logger.Log.Fatal(router.Run(":8080"))
+	logger.Log.Trace("On port :" + cfg.Listen.Port)
+	logger.Log.Fatal(router.Run(":" + cfg.Listen.Port))
 }
