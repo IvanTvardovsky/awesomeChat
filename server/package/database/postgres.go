@@ -1,14 +1,14 @@
 package database
 
 import (
-	"awesomeChat1/internal/config"
+	"awesomeChat1/internal/structures"
 	"awesomeChat1/package/logger"
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
 )
 
-func Init(cfg *config.Config) *sql.DB {
+func Init(cfg *structures.Config) *sql.DB {
 	logger.Log.Infoln("Connecting to database...")
 	logger.Log.Traceln(fmt.Sprintf("Connecting to host=%s port=%d user=%s dbname=%s",
 		cfg.Storage.Host, cfg.Storage.Port, cfg.Storage.Username, cfg.Storage.Database))

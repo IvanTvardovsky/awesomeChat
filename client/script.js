@@ -118,12 +118,42 @@ function handleKeyPress(event) {
     }
 }
 function performLogin() {
-    const loginInput = document.getElementById("loginInput").value;
-    const passwordInput = document.getElementById("passwordInput").value;
+    const loginInput = document.getElementById("loginInput");
+    const passwordInput = document.getElementById("passwordInput");
 
-    document.getElementById("loginContainer").style.display = "none";
-    document.getElementById("chooseRoomContainer").style.display = "block";
-    //document.getElementById("chatContainer").style.display = "block";
+    const loginData = {
+        username: loginInput.value,
+        password: passwordInput.value
+    };
+
+    fetch('http://localhost:8080/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(loginData)
+    })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('Login failed');
+            }
+        })
+        .then(data => {
+            console.log('Login successful:', data);
+            localStorage.setItem('token', data.token);
+            document.getElementById("loginContainer").style.display = "none";
+            document.getElementById("chooseRoomContainer").style.display = "block";
+        })
+        .catch(error => {
+            console.error('Login error:', error);
+            alert('Login failed. Please try again.');
+
+            loginInput.value = ""
+            passwordInput.value = ""
+        });
+
 
 }
 
@@ -147,7 +177,10 @@ function performRegistration() {
             if (response.ok) {
                 goToLogin();
             } else {
-                alert('Registration failed. Please try again.');
+                response.text().then(errorMessage => {
+                    console.error('Error during registration:', errorMessage);
+                    alert('Registration failed. Please try again.\nError: ' + errorMessage);
+                });
             }
         })
         .catch(error => {

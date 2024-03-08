@@ -1,9 +1,11 @@
 package main
 
 import (
-	"awesomeChat1/internal/config"
+	"awesomeChat1/internal/structures"
+	"awesomeChat1/package/config"
 	"awesomeChat1/package/database"
 	"awesomeChat1/package/logger"
+	"awesomeChat1/package/tkn"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -36,28 +38,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-// ChatRequest todo переместить
-type ChatRequest struct {
-	ChatNumber int `json:"chatNumber"`
-}
-
-type ChatUser struct {
-	Name       string
-	Connection *websocket.Conn
-}
-
-type Room struct {
-	Number int
-	Users  []*ChatUser
-}
-
-type Message struct {
-	Type     string `json:"type"`
-	Content  []byte `json:"content"`
-	Username string `json:"username"`
-}
-
-func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {
+func upgradeConnection(c *gin.Context, rooms *map[int]*structures.Room) {
 	//todo настроить после тестов
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
@@ -71,13 +52,13 @@ func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {
 
 	room, exists := (*rooms)[chatNumber]
 	if !exists {
-		currentUser := ChatUser{
+		currentUser := structures.ChatUser{
 			Name:       "User 1",
 			Connection: ws,
 		}
-		room = &Room{
+		room = &structures.Room{
 			Number: chatNumber,
-			Users:  []*ChatUser{&currentUser}, // сразу инициализация
+			Users:  []*structures.ChatUser{&currentUser}, // сразу инициализация
 		}
 		(*rooms)[chatNumber] = room
 		logger.Log.Traceln("Created room №" + strconv.Itoa(chatNumber))
@@ -86,7 +67,7 @@ func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {
 		users := &((*rooms)[chatNumber].Users)
 		//todo if?
 		if len(*users) <= 1 {
-			currentUser := ChatUser{
+			currentUser := structures.ChatUser{
 				Name:       "User 2",
 				Connection: ws,
 			}
@@ -101,8 +82,8 @@ func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {
 	go reader(ws, room)
 }
 
-func informUserLeft(room *Room, username string) {
-	msg := Message{
+func informUserLeft(room *structures.Room, username string) {
+	msg := structures.Message{
 		Type:     "userLeft",
 		Content:  []byte(username + " left the chatroom"),
 		Username: "default",
@@ -122,7 +103,7 @@ func informUserLeft(room *Room, username string) {
 	}
 }
 
-func reader(conn *websocket.Conn, room *Room) {
+func reader(conn *websocket.Conn, room *structures.Room) {
 	var leftUser string
 	defer func() {
 		for i, user := range room.Users {
@@ -144,7 +125,7 @@ func reader(conn *websocket.Conn, room *Room) {
 		}
 		logger.Log.Traceln("Received message:", string(p))
 
-		var receivedMessage Message
+		var receivedMessage structures.Message
 		err = json.Unmarshal(p, &receivedMessage)
 
 		// отправить сообщение всем пользователям в комнате, кроме отправителя
@@ -161,12 +142,8 @@ func reader(conn *websocket.Conn, room *Room) {
 	}
 }
 
-func homePage(c *gin.Context) {
-	fmt.Fprintf(c.Writer, "Home Page")
-}
-
-func connectToChatroom(c *gin.Context, rooms *map[int]*Room) {
-	var chatNumRequest ChatRequest
+func connectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
+	var chatNumRequest structures.ChatRequest
 
 	if err := c.BindJSON(&chatNumRequest); err != nil {
 		//      gin.H ~ map[string]interface{}
@@ -197,12 +174,6 @@ func connectToChatroom(c *gin.Context, rooms *map[int]*Room) {
 
 }
 
-type LoginRegisterUser struct {
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-	PasswordHash string `json:"passwordHash"`
-}
-
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
@@ -213,10 +184,17 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func register(c *gin.Context, db *sql.DB) {
-	var user LoginRegisterUser
+func isUsernameTaken(username string, db *sql.DB) (bool, error) {
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM users WHERE username = $1",
+		username).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
 
-	logger.Log.Traceln("REGISTER")
+func register(c *gin.Context, db *sql.DB) {
+	var user structures.LoginRegisterUser
 
 	err := c.ShouldBindJSON(&user)
 	if err != nil {
@@ -225,24 +203,69 @@ func register(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	logger.Log.Traceln(user.Username, user.Password)
-
 	if len(user.Username) > 20 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Username must be less than 20 symbols"})
 		return
 	}
 
-	user.PasswordHash, err = HashPassword(user.Password)
+	res, err := isUsernameTaken(user.Username, db)
+	if err != nil {
+		logger.Log.Errorln("Error querying database: " + err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+		return
+	}
+	if res == true {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username is already taken"})
+		return
+	}
 
-	logger.Log.Traceln(user.PasswordHash)
+	user.PasswordHash, err = HashPassword(user.Password)
 
 	_, err = db.Exec("INSERT INTO users (username, password_hash) VALUES ($1, $2)", user.Username, user.PasswordHash)
 	if err != nil {
-		fmt.Println("Ошибка при вставке данных:", err)
+		fmt.Println("Error inserting data:", err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Registration successful"})
+}
+
+func login(c *gin.Context, db *sql.DB) {
+	var user structures.LoginRegisterUser
+
+	err := c.ShouldBindJSON(&user)
+	if err != nil {
+		logger.Log.Errorln("Error unmarshalling JSON: " + err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Log.Infoln(user.Username, user.Password)
+
+	var databaseUser structures.LoginRegisterUser
+	err = db.QueryRow("SELECT user_id, password_hash FROM users WHERE username = $1", user.Username).Scan(&databaseUser.ID, &databaseUser.PasswordHash)
+	if err != nil {
+		logger.Log.Errorln("Error querying database: " + err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+		return
+	}
+
+	logger.Log.Infoln(databaseUser.PasswordHash)
+	if CheckPasswordHash(user.Password, databaseUser.PasswordHash) == false {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	logger.Log.Traceln(user.Username)
+	token, err := tkn.GenerateToken(user.Username)
+	if err != nil {
+		logger.Log.Errorln("Error while generating token: " + err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	fmt.Println(token)
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
 func main() {
@@ -262,17 +285,19 @@ func main() {
 	gin.DefaultWriter = io.Discard
 	router.Use(CORSMiddleware())
 
-	var rooms = make(map[int]*Room)
+	var rooms = make(map[int]*structures.Room)
 
 	logger.Log.Infoln("Serving handlers...")
-	router.GET("/", homePage)
+
 	router.GET("/chatroom/:num", func(c *gin.Context) {
 		upgradeConnection(c, &rooms)
 	})
 	router.POST("/connect", func(c *gin.Context) {
 		connectToChatroom(c, &rooms)
 	})
-	//router.POST("/login", login)
+	router.POST("/login", func(c *gin.Context) {
+		login(c, db)
+	})
 	router.POST("/register", func(c *gin.Context) {
 		register(c, db)
 	})
