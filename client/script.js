@@ -8,9 +8,7 @@ function sendMessage() {
     const messageInput = document.getElementById("messageInput");
     const message = messageInput.value;
 
-    // Проверка, что сообщение не пустое
     if (message.trim() !== "") {
-        // Отправка сообщения на сервер
         const jsonMessage = JSON.stringify({
             type: "usual",
             content: message,
@@ -37,9 +35,7 @@ function connectToChat() {
     const connectionInput = document.getElementById("connectionInput");
     const number = connectionInput.value;
 
-    // Проверка, что номер чата не пустой
     if (number.trim() !== "") {
-        // Отправка номера чата на сервер через WebSocket
         socket = new WebSocket("ws://127.0.0.1:8080/chatroom/" + number);
         console.log("Attempting Connection...");
 
@@ -61,9 +57,7 @@ function connectToChat() {
             // Парсим JSON-строку в объект
             const messageObj = JSON.parse(e.data);
 
-            // Обрабатываем разные типы сообщений
             if (messageObj.type === "usual") {
-                // Добавляем сообщение и информацию об отправителе в историю
                 messageHistory.push({
                     content: messageObj.content,
                     username: messageObj.username
@@ -127,8 +121,6 @@ function performLogin() {
     const loginInput = document.getElementById("loginInput").value;
     const passwordInput = document.getElementById("passwordInput").value;
 
-    // Выполните здесь процесс аутентификации, например, отправку данных на сервер
-
     document.getElementById("loginContainer").style.display = "none";
     document.getElementById("chooseRoomContainer").style.display = "block";
     //document.getElementById("chatContainer").style.display = "block";
@@ -138,6 +130,30 @@ function performLogin() {
 function performRegistration() {
     const loginInput = document.getElementById("loginInputRegistration").value;
     const passwordInput = document.getElementById("passwordInputRegistration").value;
+
+    const registrationData = {
+        username: loginInput,
+        password: passwordInput
+    };
+
+    fetch('http://localhost:8080/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(registrationData)
+    })
+        .then(response => {
+            if (response.ok) {
+                goToLogin();
+            } else {
+                alert('Registration failed. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error during registration:', error);
+            alert('Error during registration. Please try again.');
+        });
 }
 
 function goToRegistration() {

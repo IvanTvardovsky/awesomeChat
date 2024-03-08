@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/bcrypt"
 	"io"
 	"net/http"
 	"strconv"
@@ -35,19 +36,19 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-// todo переместить
+// ChatRequest todo переместить
 type ChatRequest struct {
 	ChatNumber int `json:"chatNumber"`
 }
 
-type User struct {
+type ChatUser struct {
 	Name       string
 	Connection *websocket.Conn
 }
 
 type Room struct {
 	Number int
-	Users  []*User
+	Users  []*ChatUser
 }
 
 type Message struct {
@@ -70,13 +71,13 @@ func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {
 
 	room, exists := (*rooms)[chatNumber]
 	if !exists {
-		currentUser := User{
+		currentUser := ChatUser{
 			Name:       "User 1",
 			Connection: ws,
 		}
 		room = &Room{
 			Number: chatNumber,
-			Users:  []*User{&currentUser}, // сразу инициализация
+			Users:  []*ChatUser{&currentUser}, // сразу инициализация
 		}
 		(*rooms)[chatNumber] = room
 		logger.Log.Traceln("Created room №" + strconv.Itoa(chatNumber))
@@ -85,7 +86,7 @@ func upgradeConnection(c *gin.Context, rooms *map[int]*Room) {
 		users := &((*rooms)[chatNumber].Users)
 		//todo if?
 		if len(*users) <= 1 {
-			currentUser := User{
+			currentUser := ChatUser{
 				Name:       "User 2",
 				Connection: ws,
 			}
@@ -196,6 +197,54 @@ func connectToChatroom(c *gin.Context, rooms *map[int]*Room) {
 
 }
 
+type LoginRegisterUser struct {
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	PasswordHash string `json:"passwordHash"`
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+
+func register(c *gin.Context, db *sql.DB) {
+	var user LoginRegisterUser
+
+	logger.Log.Traceln("REGISTER")
+
+	err := c.ShouldBindJSON(&user)
+	if err != nil {
+		logger.Log.Errorln("Error unmarshalling JSON: " + err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Log.Traceln(user.Username, user.Password)
+
+	if len(user.Username) > 20 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username must be less than 20 symbols"})
+		return
+	}
+
+	user.PasswordHash, err = HashPassword(user.Password)
+
+	logger.Log.Traceln(user.PasswordHash)
+
+	_, err = db.Exec("INSERT INTO users (username, password_hash) VALUES ($1, $2)", user.Username, user.PasswordHash)
+	if err != nil {
+		fmt.Println("Ошибка при вставке данных:", err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Registration successful"})
+}
+
 func main() {
 	cfg := config.GetConfig()
 	db := database.Init(cfg)
@@ -222,6 +271,10 @@ func main() {
 	})
 	router.POST("/connect", func(c *gin.Context) {
 		connectToChatroom(c, &rooms)
+	})
+	//router.POST("/login", login)
+	router.POST("/register", func(c *gin.Context) {
+		register(c, db)
 	})
 
 	logger.Log.Info("Starting router...")
