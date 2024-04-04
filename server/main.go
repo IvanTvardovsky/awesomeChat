@@ -1,17 +1,18 @@
 package main
 
 import (
-	"awesomeChat1/internal/structures"
-	"awesomeChat1/package/config"
-	"awesomeChat1/package/database"
-	"awesomeChat1/package/logger"
-	"awesomeChat1/package/tkn"
+	"awesomeChat/internal/informing"
+	"awesomeChat/internal/structures"
+	"awesomeChat/internal/utils"
+	"awesomeChat/package/config"
+	"awesomeChat/package/database"
+	"awesomeChat/package/logger"
+	"awesomeChat/package/tkn"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/bcrypt"
 	"io"
 	"net/http"
 	"strconv"
@@ -38,111 +39,97 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func upgradeConnection(c *gin.Context, rooms *map[int]*structures.Room) {
+func upgradeConnection(c *gin.Context) (*websocket.Conn, error) {
 	//todo настроить после тестов
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		logger.Log.Errorln(err)
+		return nil, err
 	}
-
-	chatNumber, _ := strconv.Atoi(c.Param("num"))
-	logger.Log.Traceln(chatNumber)
-
-	room, exists := (*rooms)[chatNumber]
-	if !exists {
-		currentUser := structures.ChatUser{
-			Name:       "User 1",
-			Connection: ws,
-		}
-		room = &structures.Room{
-			Number: chatNumber,
-			Users:  []*structures.ChatUser{&currentUser}, // сразу инициализация
-		}
-		(*rooms)[chatNumber] = room
-		logger.Log.Traceln("Created room №" + strconv.Itoa(chatNumber))
-		logger.Log.Traceln(currentUser.Name + " added to room")
-	} else {
-		users := &((*rooms)[chatNumber].Users)
-		//todo if?
-		if len(*users) <= 1 {
-			currentUser := structures.ChatUser{
-				Name:       "User 2",
-				Connection: ws,
-			}
-			*users = append(*users, &currentUser)
-			logger.Log.Traceln(currentUser.Name + " added to room №" + strconv.Itoa(chatNumber))
-		} else {
-			logger.Log.Traceln("Too many users in the room")
-		}
-	}
-	logger.Log.Traceln("Current amount of users: " + strconv.Itoa(len((*rooms)[chatNumber].Users)))
-
-	go reader(ws, room)
-}
-
-func informUserLeft(room *structures.Room, username string) {
-	msg := structures.Message{
-		Type:     "userLeft",
-		Content:  []byte(username + " left the chatroom"),
-		Username: "default",
-	}
-
-	messageToSend, err := json.Marshal(msg)
-	if err != nil {
-		logger.Log.Errorln(err)
-	}
-	logger.Log.Traceln("Sending:", string(messageToSend))
-
-	for _, user := range room.Users {
-		err = user.Connection.WriteMessage(websocket.TextMessage, messageToSend)
-		if err != nil {
-			logger.Log.Errorln(err)
-		}
-	}
-}
-
-func reader(conn *websocket.Conn, room *structures.Room) {
-	var leftUser string
-	defer func() {
-		for i, user := range room.Users {
-			if user.Connection == conn {
-				room.Users = append(room.Users[:i], room.Users[i+1:]...)
-				leftUser = user.Name
-				break
-			}
-		}
-		informUserLeft(room, leftUser)
-	}()
-
-	for {
-		_, p, err := conn.ReadMessage()
-		if err != nil {
-			logger.Log.Traceln("ReadMessage error: " + err.Error())
-			logger.Log.Errorln(err)
-			return
-		}
-		logger.Log.Traceln("Received message:", string(p))
-
-		var receivedMessage structures.Message
-		err = json.Unmarshal(p, &receivedMessage)
-
-		// отправить сообщение всем пользователям в комнате, кроме отправителя
-		if receivedMessage.Type == "usual" {
-			for _, user := range room.Users {
-				if user.Connection != conn {
-					err = user.Connection.WriteMessage(websocket.TextMessage, p)
-					if err != nil {
-						logger.Log.Errorln(err)
-					}
-				}
-			}
-		}
-	}
+	return ws, nil
 }
 
 func connectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
+	chatNumber, _ := strconv.Atoi(c.Param("num"))
+	username := c.Query("username")
+	logger.Log.Traceln(username + " wants to connect to room " + c.Param("num"))
+
+	room, exists := (*rooms)[chatNumber]
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Room does not exists"})
+		return
+	}
+
+	ws, err := upgradeConnection(c)
+	if err != nil {
+		logger.Log.Errorln("Error upgrading connection:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upgrade connection"})
+		return
+	}
+
+	users := &((*rooms)[chatNumber].Users)
+
+	// можно увеличить количество пользователей
+	if len(*users) <= 1 {
+		informing.InformUserJoined(room, username)
+		currentUser := structures.ChatUser{
+			Name:       username,
+			Connection: ws,
+		}
+		*users = append(*users, &currentUser)
+		logger.Log.Traceln(currentUser.Name + " added to room №" + strconv.Itoa(chatNumber))
+	} else {
+		logger.Log.Traceln("Too many users in the room")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Too many users in the room"})
+		return
+	}
+
+	logger.Log.Traceln(fmt.Sprintf("Current amount of users in room %d: %d", chatNumber, len((*rooms)[chatNumber].Users)))
+	informing.SetRoomName(ws, room.Name, room.Number)
+	go reader(ws, room)
+}
+
+func createChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
+	chatNumber, _ := strconv.Atoi(c.Param("num"))
+	username := c.Query("username")
+	roomname := c.Query("roomname")
+	logger.Log.Traceln(username + " wants to connect to room " + c.Param("num"))
+
+	room, exists := (*rooms)[chatNumber]
+	if exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Room already exists"})
+		return
+	}
+
+	ws, err := upgradeConnection(c)
+	if err != nil {
+		logger.Log.Errorln("Error upgrading connection:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upgrade connection"})
+		return
+	}
+
+	currentUser := structures.ChatUser{
+		Name:       username,
+		Connection: ws,
+	}
+	room = &structures.Room{
+		Number: chatNumber,
+		Name:   roomname,
+		Users:  []*structures.ChatUser{&currentUser}, // сразу инициализация
+	}
+	(*rooms)[chatNumber] = room
+	logger.Log.Traceln("Created room №" + strconv.Itoa(chatNumber))
+	logger.Log.Traceln(currentUser.Name + " added to room")
+
+	logger.Log.Traceln(fmt.Sprintf("Current amount of users in room %d: %d", chatNumber, len((*rooms)[chatNumber].Users)))
+	informing.SetRoomName(ws, room.Name, room.Number)
+	go reader(ws, room)
+}
+
+// для первичной проверки клиентом можно ли зайти в чатрум (?)
+func isPossibleToConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 	var chatNumRequest structures.ChatRequest
 
 	if err := c.BindJSON(&chatNumRequest); err != nil {
@@ -174,23 +161,43 @@ func connectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 
 }
 
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
+func reader(conn *websocket.Conn, room *structures.Room) {
+	var leftUser string
+	defer func() {
+		for i, user := range room.Users {
+			if user.Connection == conn {
+				room.Users = append(room.Users[:i], room.Users[i+1:]...)
+				leftUser = user.Name
+				break
+			}
+		}
+		informing.InformUserLeft(room, leftUser)
+	}()
 
-func CheckPasswordHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
-}
+	for {
+		_, p, err := conn.ReadMessage()
+		if err != nil {
+			logger.Log.Traceln("ReadMessage error: " + err.Error())
+			logger.Log.Errorln(err)
+			return
+		}
+		logger.Log.Traceln("Received message:", string(p))
 
-func isUsernameTaken(username string, db *sql.DB) (bool, error) {
-	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM users WHERE username = $1",
-		username).Scan(&count); err != nil {
-		return false, err
+		var receivedMessage structures.Message
+		err = json.Unmarshal(p, &receivedMessage)
+
+		switch receivedMessage.Type {
+		case "usual":
+			for _, user := range room.Users { // отправить сообщение всем пользователям в комнате, кроме отправителя
+				if user.Connection != conn {
+					err = user.Connection.WriteMessage(websocket.TextMessage, p)
+					if err != nil {
+						logger.Log.Errorln(err)
+					}
+				}
+			}
+		}
 	}
-	return count > 0, nil
 }
 
 func register(c *gin.Context, db *sql.DB) {
@@ -208,7 +215,7 @@ func register(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	res, err := isUsernameTaken(user.Username, db)
+	res, err := utils.IsUsernameTaken(user.Username, db)
 	if err != nil {
 		logger.Log.Errorln("Error querying database: " + err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
@@ -219,7 +226,7 @@ func register(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	user.PasswordHash, err = HashPassword(user.Password)
+	user.PasswordHash, err = tkn.HashPassword(user.Password)
 
 	_, err = db.Exec("INSERT INTO users (username, password_hash) VALUES ($1, $2)", user.Username, user.PasswordHash)
 	if err != nil {
@@ -251,7 +258,7 @@ func login(c *gin.Context, db *sql.DB) {
 	}
 
 	logger.Log.Infoln(databaseUser.PasswordHash)
-	if CheckPasswordHash(user.Password, databaseUser.PasswordHash) == false {
+	if tkn.CheckPasswordHash(user.Password, databaseUser.PasswordHash) == false {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
@@ -289,11 +296,17 @@ func main() {
 
 	logger.Log.Infoln("Serving handlers...")
 
-	router.GET("/chatroom/:num", func(c *gin.Context) {
-		upgradeConnection(c, &rooms)
+	// connectToChatRoom/%room_id?username=: upgrade -> connect user to room id
+	// createChatRoom/%room_id?username=&roomname= -> create room, connect user
+
+	router.GET("/connectToChatroom/:num", func(c *gin.Context) {
+		connectToChatroom(c, &rooms)
+	})
+	router.GET("/createChatroom/:num", func(c *gin.Context) {
+		createChatroom(c, &rooms)
 	})
 	router.POST("/connect", func(c *gin.Context) {
-		connectToChatroom(c, &rooms)
+		isPossibleToConnectToChatroom(c, &rooms)
 	})
 	router.POST("/login", func(c *gin.Context) {
 		login(c, db)

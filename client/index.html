@@ -7,23 +7,23 @@
     <title>AwesomeChat</title>
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Подключение Bootstrap для стилей -->
+    <!-- Bootstrap для стилей -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
           integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 </head>
 <body class="container mt-5">
 
-<!-- Добавлено окно логина -->
+<!-- окно логина -->
 <div id="loginContainer" class="mt-5">
     <h2>Login</h2>
     <form>
         <div class="form-group">
             <label for="loginInput">Login:</label>
-            <input type="text" class="form-control" id="loginInput" placeholder="Enter your login">
+            <input type="text" class="form-control" id="loginInput" placeholder="Enter your login" onkeypress="handleKeyPressLogin(event)">
         </div>
         <div class="form-group">
             <label for="passwordInput">Password:</label>
-            <input type="password" class="form-control" id="passwordInput" placeholder="Enter your password">
+            <input type="password" class="form-control" id="passwordInput" placeholder="Enter your password" onkeypress="handleKeyPressLogin(event)">
         </div>
         <button type="button" class="btn btn-primary" onclick="performLogin()">Login</button>
         <button type="button" class="btn btn-primary" onclick="goToRegistration()">Go to registration</button>
@@ -35,40 +35,76 @@
     <form>
         <div class="form-group">
             <label for="loginInput">Login:</label>
-            <input type="text" class="form-control" id="loginInputRegistration" placeholder="Choose a login">
+            <input type="text" class="form-control" id="loginInputRegistration" placeholder="Choose a login" onkeypress="handleKeyPressRegistration(event)">
         </div>
         <div class="form-group">
             <label for="passwordInput">Password:</label>
-            <input type="password" class="form-control" id="passwordInputRegistration" placeholder="Choose a password">
+            <input type="password" class="form-control" id="passwordInputRegistration" placeholder="Choose a password" onkeypress="handleKeyPressRegistration(event)">
         </div>
         <button type="button" class="btn btn-primary" onclick="performRegistration()">Register</button>
         <button type="button" class="btn btn-primary" onclick="goToLogin()">Go to login</button>
     </form>
 </div>
 
-<!-- Окно чата с сохранением истории -->
+<!-- окно чата с сохранением истории -->
 <div id="chatContainer">
     <div class="card">
-        <div class="card-header">
+        <div class="card-header" id="roomNameHeader">
             AwesomeChat
         </div>
         <div class="card-body" id="incomingMessagesContainer">
             <div class="message-container" id="incomingMessages"></div>
         </div>
         <div class="card-footer">
-            <input type="text" class="form-control" id="messageInput" placeholder="Введите сообщение" onkeypress="handleKeyPress(event)"/>
-            <button class="btn btn-primary mt-2" onclick="sendMessage()">Отправить сообщение</button>
+            <input type="text" class="form-control" id="messageInput" placeholder="Enter the message" onkeypress="handleKeyPress(event)"/>
+            <button class="btn btn-primary mt-2" onclick="sendMessage()">Send message</button>
+            <button class="btn btn-danger mt-2" onclick="leaveChat()">Leave</button>
         </div>
     </div>
 </div>
 
-<!-- Поля ввода и кнопка для присоединения к чату -->
+<!-- кнопка для присоединения к чату -->
 <div class="mt-3" id="chooseRoomContainer" style="display: none">
-    <input type="text" class="form-control" id="connectionInput" placeholder="Enter the room number"/>
-    <button class="btn btn-success mt-2" onclick="connectToChat()">Join the chat</button>
+    <div class="row mt-3">
+        <!-- существующие комнаты -->
+        <div class="col-md-6">
+            <h2>Existing Chat Rooms</h2>
+            <div id="existingRooms">
+                <!--  -->
+            </div>
+        </div>
+
+        <!-- присоединение к существующей комнате -->
+        <div class="col-md-6">
+            <h2>Join an Existing Chat Room</h2>
+            <form>
+                <div class="form-group">
+                    <label for="roomIdInput">Room ID:</label>
+                    <input type="text" class="form-control" id="roomIdInput" placeholder="Enter room ID">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="connectToExistingRoom()">Join Room</button>
+            </form>
+        </div>
+
+        <!-- создание новой комнаты -->
+        <div class="col-md-6 mt-3">
+            <h2>Create a New Chat Room</h2>
+            <form>
+                <div class="form-group">
+                    <label for="roomNameInput">Room Name:</label>
+                    <input type="text" class="form-control" id="roomNameInput" placeholder="Enter room name">
+                </div>
+                <div class="form-group">
+                    <label for="roomIdInputNew">Room ID:</label>
+                    <input type="text" class="form-control" id="roomIdInputNew" placeholder="Enter room ID">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="createNewRoom()">Create Room</button>
+            </form>
+        </div>
+    </div>
 </div>
 
-<!-- Подключение Bootstrap -->
+<!-- Bootstrap -->
 <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
         integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"

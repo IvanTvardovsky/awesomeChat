@@ -1,4 +1,4 @@
-module awesomeChat1
+module awesomeChat
 
 go 1.20
 

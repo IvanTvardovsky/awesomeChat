@@ -1,9 +1,8 @@
-// Глобальная переменная для хранения объекта WebSocket
+// глобальная переменная WebSocket
 let socket;
-// Массив для хранения истории входящих сообщений
+// история входящих сообщений
 let messageHistory = [];
 
-// Обработчик событий для отправки сообщения
 function sendMessage() {
     const messageInput = document.getElementById("messageInput");
     const message = messageInput.value;
@@ -12,35 +11,35 @@ function sendMessage() {
         const jsonMessage = JSON.stringify({
             type: "usual",
             content: message,
-            username: "we will make username later to server"
+            username: localStorage.getItem("username")
         });
 
         socket.send(jsonMessage);
 
-        // Добавляем сообщение и информацию об отправителе в историю
         messageHistory.push({
             content: message,
-            username: "we will make username later to client"
+            username: localStorage.getItem("username")
         });
 
-        // Обновляем отображение входящих сообщений
         updateIncomingMessages();
-
-        // Очистка поля ввода после отправки
         messageInput.value = "";
     }
 }
 
-function connectToChat() {
-    const connectionInput = document.getElementById("connectionInput");
-    const number = connectionInput.value;
+function connectToExistingRoom() {
+    messageHistory.splice(0);
+    updateIncomingMessages();
+    document.getElementById("chooseRoomContainer").style.display = "none";
+    const roomIdInput = document.getElementById("roomIdInput");
+    const roomId = roomIdInput.value.trim();
+    const username = localStorage.getItem('username');
 
-    if (number.trim() !== "") {
-        socket = new WebSocket("ws://127.0.0.1:8080/chatroom/" + number);
-        console.log("Attempting Connection...");
+    if (roomId !== "") {
+        const socketUrl = `ws://127.0.0.1:8080/connectToChatroom/${roomId}?username=${encodeURIComponent(username)}`;
+        socket = new WebSocket(socketUrl);
 
         socket.onopen = () => {
-            console.log("Successfully Connected");
+            console.log("Successfully connected to chat room");
         };
 
         socket.onclose = event => {
@@ -54,7 +53,6 @@ function connectToChat() {
         socket.onmessage = function (e) {
             console.log("Server: " + e.data + "\n");
 
-            // Парсим JSON-строку в объект
             const messageObj = JSON.parse(e.data);
 
             if (messageObj.type === "usual") {
@@ -63,7 +61,6 @@ function connectToChat() {
                     username: messageObj.username
                 });
 
-                // Обновляем отображение входящих сообщений
                 updateIncomingMessages();
             } else if (messageObj.type === "userLeft") {
                 const decodedContent = atob(messageObj.content);
@@ -72,34 +69,105 @@ function connectToChat() {
                     username: decodedContent  // костыль для выделения жирным
                 });
                 updateIncomingMessages();
+            } else if (messageObj.type === "userJoined") {
+                const decodedContent = atob(messageObj.content);
+                messageHistory.push({
+                    content: "",
+                    username: decodedContent  // костыль для выделения жирным
+                });
+                updateIncomingMessages();
+            } else if (messageObj.type === "setRoomName") {
+                const decodedContent = atob(messageObj.content);
+                updateRoomName(decodedContent)
+            } else {
+                console.error("Неизвестный тип сообщения:", messageObj.type);
+            }
+        }
+        ;
+
+        document.getElementById("chatContainer").style.display = "block";
+        roomIdInput.value = "";
+    }
+}
+
+function createNewRoom() {
+    console.log("Creating new room...");
+    messageHistory.splice(0);
+    updateIncomingMessages();
+    document.getElementById("chooseRoomContainer").style.display = "none";
+    const roomIdInput = document.getElementById("roomIdInputNew");
+    const roomId = roomIdInput.value.trim();
+    const roomNameInput = document.getElementById("roomNameInput");
+    const roomName = roomNameInput.value.trim();
+    const username = localStorage.getItem('username');
+
+    if (roomId !== "" && roomName !== "") {
+        const socketUrl = `ws://127.0.0.1:8080/createChatroom/${roomId}?username=${encodeURIComponent(username)}&roomname=${encodeURIComponent(roomName)}`;
+        socket = new WebSocket(socketUrl);
+
+        socket.onopen = () => {
+            console.log("Successfully connected to chat room");
+        };
+
+        socket.onclose = event => {
+            console.log("Socket Closed Connection: ", event);
+        };
+
+        socket.onerror = error => {
+            console.log("Socket Error: ", error);
+        };
+
+        socket.onmessage = function (e) {
+            console.log("Server: " + e.data + "\n");
+
+            const messageObj = JSON.parse(e.data);
+
+            if (messageObj.type === "usual") {
+                messageHistory.push({
+                    content: messageObj.content,
+                    username: messageObj.username
+                });
+
+                updateIncomingMessages();
+            } else if (messageObj.type === "userLeft") {
+                const decodedContent = atob(messageObj.content);
+                messageHistory.push({
+                    content: "",
+                    username: decodedContent  // костыль для выделения жирным
+                });
+                updateIncomingMessages();
+            } else if (messageObj.type === "userJoined") {
+                const decodedContent = atob(messageObj.content);
+                messageHistory.push({
+                    content: "",
+                    username: decodedContent  // костыль для выделения жирным
+                });
+                updateIncomingMessages();
+            } else if (messageObj.type === "setRoomName") {
+                const decodedContent = atob(messageObj.content);
+                updateRoomName(decodedContent)
             } else {
                 console.error("Неизвестный тип сообщения:", messageObj.type);
             }
         };
 
-        // Показываем окно для отправки и отображения сообщений
         document.getElementById("chatContainer").style.display = "block";
-
-        connectionInput.value = "";
+        roomIdInput.value = "";
     }
 }
 
-// Функция для обновления отображения входящих сообщений
 function updateIncomingMessages() {
-    // Получаем div для истории сообщений
     const incomingMessagesDiv = document.getElementById("incomingMessages");
 
-    // Очищаем содержимое div
     incomingMessagesDiv.innerHTML = "";
 
-    // Добавляем новые сообщения в конец div в обратном порядке
     for (let i = messageHistory.length - 1; i >= 0; i--) {
         const messageDiv = document.createElement("div");
         const usernameSpan = document.createElement("span");
         usernameSpan.textContent = messageHistory[i].username;
         usernameSpan.style.fontWeight = "bold";
         messageDiv.appendChild(usernameSpan);
-        // Добавляем текст сообщения после имени пользователя
+
         if (messageHistory[i].content !== "") {
             messageDiv.innerHTML += `: ${messageHistory[i].content}`;
         }
@@ -107,16 +175,27 @@ function updateIncomingMessages() {
         incomingMessagesDiv.appendChild(messageDiv);
     }
 
-    // Прокручиваем контейнер вниз
     incomingMessagesDiv.scrollTop = incomingMessagesDiv.scrollHeight;
 }
 
-// Отправка сообщения при нажатии Enter
 function handleKeyPress(event) {
     if (event.key === "Enter") {
         sendMessage();
     }
 }
+
+function handleKeyPressLogin(event) {
+    if (event.key === 'Enter') {
+        performLogin();
+    }
+}
+
+function handleKeyPressRegistration(event) {
+    if (event.key === 'Enter') {
+        performRegistration();
+    }
+}
+
 function performLogin() {
     const loginInput = document.getElementById("loginInput");
     const passwordInput = document.getElementById("passwordInput");
@@ -143,6 +222,7 @@ function performLogin() {
         .then(data => {
             console.log('Login successful:', data);
             localStorage.setItem('token', data.token);
+            localStorage.setItem('username', loginInput.value);
             document.getElementById("loginContainer").style.display = "none";
             document.getElementById("chooseRoomContainer").style.display = "block";
         })
@@ -153,8 +233,6 @@ function performLogin() {
             loginInput.value = ""
             passwordInput.value = ""
         });
-
-
 }
 
 function performRegistration() {
@@ -197,5 +275,21 @@ function goToRegistration() {
 function goToLogin() {
     document.getElementById("loginContainer").style.display = "block";
     document.getElementById("registrationContainer").style.display = "none";
+}
+
+function leaveChat() {
+    messageHistory.splice(0); // Полное удаление всех элементов из массива messageHistory
+    updateIncomingMessages();
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+    }
+
+    document.getElementById("chatContainer").style.display = "none";
+    document.getElementById("chooseRoomContainer").style.display = "block";
+}
+
+function updateRoomName(roomName) {
+    document.getElementById("roomNameHeader").innerText = roomName;
 }
 

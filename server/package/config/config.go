@@ -1,8 +1,8 @@
 package config
 
 import (
-	"awesomeChat1/internal/structures"
-	"awesomeChat1/package/logger"
+	"awesomeChat/internal/structures"
+	"awesomeChat/package/logger"
 	"github.com/ilyakaznacheev/cleanenv"
 	"sync"
 )

@@ -40,6 +40,7 @@ type ChatUser struct {
 
 type Room struct {
 	Number int
+	Name   string
 	Users  []*ChatUser
 }
 

@@ -1,8 +1,8 @@
 package database
 
 import (
-	"awesomeChat1/internal/structures"
-	"awesomeChat1/package/logger"
+	"awesomeChat/internal/structures"
+	"awesomeChat/package/logger"
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
