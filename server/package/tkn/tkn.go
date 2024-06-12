@@ -1,26 +1,11 @@
 package tkn
 
 import (
-	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
-	"time"
+	"math/rand"
 )
 
-func GenerateToken(username string) (string, error) {
-	expirationTime := time.Now().Add(3 * 24 * time.Hour)
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": username,
-		"exp":      expirationTime.Unix(),
-	})
-
-	tokenString, err := token.SignedString([]byte("a-big-secret"))
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
-}
+const letters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -30,4 +15,12 @@ func HashPassword(password string) (string, error) {
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+func RandString(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }

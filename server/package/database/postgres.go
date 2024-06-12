@@ -8,7 +8,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func Init(cfg *structures.Config) *sql.DB {
+func InitPostgres(cfg *structures.Config) *sql.DB {
 	logger.Log.Infoln("Connecting to database...")
 	logger.Log.Traceln(fmt.Sprintf("Connecting to host=%s port=%d user=%s dbname=%s",
 		cfg.Storage.Host, cfg.Storage.Port, cfg.Storage.Username, cfg.Storage.Database))

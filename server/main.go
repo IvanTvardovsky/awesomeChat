@@ -12,27 +12,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 	"io"
 	"net/http"
 	"strconv"
 )
-
-func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	}
-}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -237,7 +222,7 @@ func register(c *gin.Context, db *sql.DB) {
 	c.JSON(http.StatusOK, gin.H{"message": "Registration successful"})
 }
 
-func login(c *gin.Context, db *sql.DB) {
+func login(c *gin.Context, db *sql.DB, rc *redis.Client) {
 	var user structures.LoginRegisterUser
 
 	err := c.ShouldBindJSON(&user)
@@ -257,27 +242,39 @@ func login(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	logger.Log.Infoln(databaseUser.PasswordHash)
 	if tkn.CheckPasswordHash(user.Password, databaseUser.PasswordHash) == false {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	logger.Log.Traceln(user.Username)
-	token, err := tkn.GenerateToken(user.Username)
-	if err != nil {
-		logger.Log.Errorln("Error while generating token: " + err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
-	}
+	//SID := tkn.RandString(32)
 
-	fmt.Println(token)
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	//cookie, err := c.Cookie("censorship")
+
+	str := "censorship"
+
+	/*if err != nil {
+		cookie = "NotSet"
+		c.SetCookie("censorship", str, 30, "/", "localhost", false, false)
+	}*/
+
+	c.SetCookie("censorship", str, 900, "/", "localhost", false, true)
+
+	//err = rc.Set(c.Request.Context(), SID, "user_id", 2*time.Hour).Err()
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged in"})
+}
+
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		logger.Log.Infoln("HI IM censorship")
+	}
 }
 
 func main() {
 	cfg := config.GetConfig()
-	db := database.Init(cfg)
+	db := database.InitPostgres(cfg)
+	redisClient := database.InitRedis(cfg)
 
 	defer func(db *sql.DB) {
 		err := db.Close()
@@ -285,12 +282,18 @@ func main() {
 			logger.Log.Errorln("Error closing database: " + err.Error())
 		}
 	}(db)
+	defer func(redisClient *redis.Client) {
+		err := redisClient.Close()
+		if err != nil {
+
+		}
+	}(redisClient)
 
 	logger.Log.Infoln("Starting service...")
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = io.Discard
-	router.Use(CORSMiddleware())
+	router.Use(utils.CORSMiddleware())
 
 	var rooms = make(map[int]*structures.Room)
 
@@ -299,23 +302,27 @@ func main() {
 	// connectToChatRoom/%room_id?username=: upgrade -> connect user to room id
 	// createChatRoom/%room_id?username=&roomname= -> create room, connect user
 
-	router.GET("/connectToChatroom/:num", func(c *gin.Context) {
+	router.POST("/login", func(c *gin.Context) {
+		login(c, db, redisClient)
+	})
+	router.GET("/logout", func(c *gin.Context) {
+		//login(c, db) //todo
+	})
+	router.POST("/register", func(c *gin.Context) {
+		register(c, db)
+	})
+	router.GET("/connectToChatroom/:num", AuthMiddleware(), func(c *gin.Context) {
 		connectToChatroom(c, &rooms)
 	})
-	router.GET("/createChatroom/:num", func(c *gin.Context) {
+	router.GET("/createChatroom/:num", AuthMiddleware(), func(c *gin.Context) {
 		createChatroom(c, &rooms)
 	})
 	router.POST("/connect", func(c *gin.Context) {
 		isPossibleToConnectToChatroom(c, &rooms)
 	})
-	router.POST("/login", func(c *gin.Context) {
-		login(c, db)
-	})
-	router.POST("/register", func(c *gin.Context) {
-		register(c, db)
-	})
 
 	logger.Log.Info("Starting router...")
 	logger.Log.Trace("On port :" + cfg.Listen.Port)
 	logger.Log.Fatal(router.Run(":" + cfg.Listen.Port))
+
 }
