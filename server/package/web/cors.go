@@ -1,18 +1,6 @@
-package utils
+package web
 
-import (
-	"database/sql"
-	"github.com/gin-gonic/gin"
-)
-
-func IsUsernameTaken(username string, db *sql.DB) (bool, error) {
-	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM users WHERE username = $1",
-		username).Scan(&count); err != nil {
-		return false, err
-	}
-	return count > 0, nil
-}
+import "github.com/gin-gonic/gin"
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {

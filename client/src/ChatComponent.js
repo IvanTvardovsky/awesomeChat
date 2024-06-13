@@ -1,107 +1,64 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button, TextField, Typography, Container, Box, Paper } from '@mui/material';
 
-const ChatComponent = ({ socket, messageHistory, roomName, onUpdateRoomName, onLeaveChat }) => {
-    const [message, setMessage] = useState('');
-
-    useEffect(() => {
-        if (socket) {
-            socket.onmessage = (e) => {
-                const messageObj = JSON.parse(e.data);
-
-                if (messageObj.type === 'usual') {
-                    messageHistory.push({
-                        content: messageObj.content,
-                        username: messageObj.username
-                    });
-                } else if (messageObj.type === 'userLeft' || messageObj.type === 'userJoined') {
-                    const decodedContent = atob(messageObj.content);
-                    messageHistory.push({
-                        content: '',
-                        username: decodedContent  // костыль для выделения жирным
-                    });
-                } else if (messageObj.type === 'setRoomName') {
-                    const decodedContent = atob(messageObj.content);
-                    onUpdateRoomName(decodedContent);
-                } else {
-                    console.error('Неизвестный тип сообщения:', messageObj.type);
-                }
-                updateIncomingMessages();
-            };
-        }
-
-        return () => {
-            if (socket) {
-                socket.close();
-            }
-        };
-    }, [socket, messageHistory, onUpdateRoomName]);
+const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessageHistory }) => {
+    const [messageInput, setMessageInput] = useState('');
+    const messagesEndRef = useRef(null);
 
     const sendMessage = () => {
-        if (message.trim() !== '') {
+        if (messageInput.trim() !== '') {
             const jsonMessage = JSON.stringify({
                 type: 'usual',
-                content: message,
+                content: messageInput,
                 username: localStorage.getItem('username')
             });
 
             socket.send(jsonMessage);
 
-            messageHistory.push({
-                content: message,
-                username: localStorage.getItem('username')
-            });
+            setMessageHistory(prevMessages => [
+                ...prevMessages,
+                { content: messageInput, username: localStorage.getItem('username') }
+            ]);
 
-            updateIncomingMessages();
-            setMessage('');
+            setMessageInput('');
         }
     };
 
-    const updateIncomingMessages = () => {
-        const incomingMessagesDiv = document.getElementById('incomingMessages');
-
-        incomingMessagesDiv.innerHTML = '';
-
-        for (let i = messageHistory.length - 1; i >= 0; i--) {
-            const messageDiv = document.createElement('div');
-            const usernameSpan = document.createElement('span');
-            usernameSpan.textContent = messageHistory[i].username;
-            usernameSpan.style.fontWeight = 'bold';
-            messageDiv.appendChild(usernameSpan);
-
-            if (messageHistory[i].content !== '') {
-                messageDiv.innerHTML += `: ${messageHistory[i].content}`;
-            }
-
-            incomingMessagesDiv.appendChild(messageDiv);
-        }
-
-        incomingMessagesDiv.scrollTop = incomingMessagesDiv.scrollHeight;
-    };
-
-    const handleLeaveChat = () => {
-        messageHistory.splice(0);
-        updateIncomingMessages();
-        onLeaveChat();
-    };
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messageHistory]);
 
     return (
-        <div id="chatContainer">
-            <h2 id="roomNameHeader">{roomName}</h2>
-            <div id="incomingMessages" className="border p-2 mb-2" style={{ height: '300px', overflowY: 'scroll' }}>
-                {/* //todo */}
-            </div>
-            <input
-                type="text"
-                id="messageInput"
-                className="form-control"
-                placeholder="Enter your message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            <button className="btn btn-primary mt-2" onClick={sendMessage}>Send</button>
-            <button className="btn btn-secondary mt-2 ml-2" onClick={handleLeaveChat}>Leave Chat</button>
-        </div>
+        <Container component="main" maxWidth="md" sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+            <Typography component="h1" variant="h5">
+                {roomName}
+            </Typography>
+            <Button variant="contained" color="secondary" onClick={onLeaveChat}>
+                Leave Chat
+            </Button>
+            <Paper elevation={3} sx={{ marginTop: '20px', padding: '10px', flexGrow: 1, overflowY: 'auto' }}>
+                <Box id="incomingMessages" sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', height: '100%' }}>
+                    {messageHistory.map((message, index) => (
+                        <div key={index}>
+                            <strong>{message.username}:</strong> {message.content}
+                        </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                </Box>
+            </Paper>
+            <Box component="form" onSubmit={e => { e.preventDefault(); sendMessage(); }} sx={{ mt: 2, display: 'flex' }}>
+                <TextField
+                    variant="outlined"
+                    fullWidth
+                    placeholder="Enter your message"
+                    value={messageInput}
+                    onChange={e => setMessageInput(e.target.value)}
+                />
+                <Button variant="contained" color="primary" onClick={sendMessage}>
+                    Send
+                </Button>
+            </Box>
+        </Container>
     );
 };
 

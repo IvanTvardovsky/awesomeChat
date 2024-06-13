@@ -1,28 +1,60 @@
 import React from 'react';
+import { Button, TextField, Typography, Container, Alert } from '@mui/material';
 
-const RegisterComponent = ({ onRegister, onGoToLogin, error, handleInputChange }) => {
+const RegistrationComponent = ({ onRegister, onGoToLogin, error, handleInputChange }) => {
     return (
-        <div id="registerContainer" className="mt-5">
-            <h2>Registration</h2>
-            {error && <div className="alert alert-danger">{error}</div>}
+        <Container component="main" maxWidth="xs">
+            <Typography component="h1" variant="h5">
+                Registration
+            </Typography>
+            {error && <Alert severity="error">{error}</Alert>}
             <form>
-                <div className="form-group">
-                    <label htmlFor="loginInputRegistration">Login:</label>
-                    <input type="text" className="form-control" id="loginInputRegistration" placeholder="Enter your login" onChange={handleInputChange} />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="passwordInputRegistration">Password:</label>
-                    <input type="password" className="form-control" id="passwordInputRegistration" placeholder="Enter your password" onChange={handleInputChange} />
-                </div>
-                <button type="button" className="btn btn-primary" onClick={onRegister}>
+                <TextField
+                    variant="outlined"
+                    margin="normal"
+                    required
+                    fullWidth
+                    id="loginInput"
+                    label="Login"
+                    name="login"
+                    autoComplete="login"
+                    autoFocus
+                    onChange={handleInputChange}
+                />
+                <TextField
+                    variant="outlined"
+                    margin="normal"
+                    required
+                    fullWidth
+                    name="password"
+                    label="Password"
+                    type="password"
+                    id="passwordInput"
+                    autoComplete="current-password"
+                    onChange={handleInputChange}
+                />
+                <Button
+                    type="button"
+                    fullWidth
+                    variant="contained"
+                    color="primary"
+                    onClick={onRegister}
+                >
                     Register
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={onGoToLogin}>
+                </Button>
+                <Button
+                    type="button"
+                    fullWidth
+                    variant="contained"
+                    color="secondary"
+                    onClick={onGoToLogin}
+                    style={{ marginTop: '10px' }}
+                >
                     Back to Login
-                </button>
+                </Button>
             </form>
-        </div>
+        </Container>
     );
 };
 
-export default RegisterComponent;
+export default RegistrationComponent;

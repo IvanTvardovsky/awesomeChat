@@ -3,6 +3,7 @@ import Login from './Login';
 import Registration from './Registration';
 import ChatComponent from './ChatComponent';
 import RoomComponent from './RoomComponent';
+import { Container, CssBaseline } from '@mui/material';
 
 const App = () => {
     const [currentView, setCurrentView] = useState('login');
@@ -79,7 +80,8 @@ const App = () => {
     };
 
     return (
-        <div className="container mt-5">
+        <Container component="main" maxWidth="md">
+            <CssBaseline />
             {currentView === 'login' && (
                 <Login onLogin={handleLogin} onGoToRegistration={handleRegistration} />
             )}
@@ -95,13 +97,14 @@ const App = () => {
                     roomName={roomName}
                     onUpdateRoomName={setRoomName}
                     onLeaveChat={handleLeaveChat}
+                    setMessageHistory={setMessageHistory}
                 />
             )}
 
             {currentView === 'room' && (
                 <RoomComponent onJoinRoom={handleJoinRoom} onCreateRoom={handleCreateRoom} />
             )}
-        </div>
+        </Container>
     );
 };
 

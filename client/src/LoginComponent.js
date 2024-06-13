@@ -1,29 +1,61 @@
 import React from 'react';
+import { Button, TextField, Typography, Container, Alert } from '@mui/material';
 
 const LoginComponent = ({ isRegistration, onLogin, onRegistration, error, handleInputChange }) => {
     return (
-        <div id="loginContainer" className="mt-5">
-            <h2>{isRegistration ? 'Registration' : 'Login'}</h2>
-            {error && <div className="alert alert-danger">{error}</div>}
+        <Container component="main" maxWidth="xs">
+            <Typography component="h1" variant="h5">
+                {isRegistration ? 'Registration' : 'Login'}
+            </Typography>
+            {error && <Alert severity="error">{error}</Alert>}
             <form>
-                <div className="form-group">
-                    <label htmlFor="loginInput">Login:</label>
-                    <input type="text" className="form-control" id="loginInput" placeholder="Enter your login" onChange={handleInputChange} />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="passwordInput">Password:</label>
-                    <input type="password" className="form-control" id="passwordInput" placeholder="Enter your password" onChange={handleInputChange} />
-                </div>
-                <button type="button" className="btn btn-primary" onClick={onLogin}>
+                <TextField
+                    variant="outlined"
+                    margin="normal"
+                    required
+                    fullWidth
+                    id="loginInput"
+                    label="Login"
+                    name="login"
+                    autoComplete="login"
+                    autoFocus
+                    onChange={handleInputChange}
+                />
+                <TextField
+                    variant="outlined"
+                    margin="normal"
+                    required
+                    fullWidth
+                    name="password"
+                    label="Password"
+                    type="password"
+                    id="passwordInput"
+                    autoComplete="current-password"
+                    onChange={handleInputChange}
+                />
+                <Button
+                    type="button"
+                    fullWidth
+                    variant="contained"
+                    color="primary"
+                    onClick={onLogin}
+                >
                     {isRegistration ? 'Register' : 'Login'}
-                </button>
+                </Button>
                 {!isRegistration && (
-                    <button type="button" className="btn btn-primary" onClick={onRegistration}>
+                    <Button
+                        type="button"
+                        fullWidth
+                        variant="contained"
+                        color="secondary"
+                        onClick={onRegistration}
+                        style={{ marginTop: '10px' }}
+                    >
                         Go to registration
-                    </button>
+                    </Button>
                 )}
             </form>
-        </div>
+        </Container>
     );
 };
 
