@@ -62,7 +62,7 @@ func main() {
 	router.GET("/connectToChatroom/:num", AuthMiddleware(), func(c *gin.Context) {
 		handlers.ConnectToChatroom(c, &rooms)
 	})
-	router.GET("/createChatroom/:num", AuthMiddleware(), func(c *gin.Context) {
+	router.GET("/createChatroom/", AuthMiddleware(), func(c *gin.Context) {
 		handlers.CreateChatroom(c, &rooms)
 	})
 	router.POST("/connect", func(c *gin.Context) {

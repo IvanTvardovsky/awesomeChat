@@ -1,21 +1,41 @@
 import React, { useState } from 'react';
-import { Button, TextField, Typography, Container, Grid } from '@mui/material';
+import { Button, TextField, Typography, Container, Grid, FormControlLabel, RadioGroup, Radio, Snackbar, Alert } from '@mui/material';
 
 const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
     const [joinRoomId, setJoinRoomId] = useState('');
-    const [newRoomId, setNewRoomId] = useState('');
     const [roomName, setRoomName] = useState('');
+    const [roomType, setRoomType] = useState('open'); // 'open' or 'closed'
+    const [createRoomPassword, setCreateRoomPassword] = useState('');
+    const [joinRoomPassword, setJoinRoomPassword] = useState('');
+    const [error, setError] = useState(null);
 
     const handleJoinRoom = () => {
         if (joinRoomId.trim() !== '') {
-            onJoinRoom(joinRoomId);
+            const roomId = joinRoomId.trim();
+            const password = joinRoomPassword.trim();
+            onJoinRoom(roomId, password);
         }
     };
 
     const handleCreateRoom = () => {
-        if (newRoomId.trim() !== '' && roomName.trim() !== '') {
-            onCreateRoom(newRoomId, roomName);
+        if (roomName.trim() === '' || (roomType === 'closed' && createRoomPassword.trim() === '')) {
+            setError('Please fill in all required fields');
+            return;
         }
+        const password = roomType === 'closed' ? createRoomPassword.trim() : '';
+        const open = roomType === 'open' ? 1 : 0;
+        onCreateRoom(roomName, password, open);
+    };
+
+    const handleRoomTypeChange = (event) => {
+        setRoomType(event.target.value);
+        if (event.target.value === 'open') {
+            setCreateRoomPassword('');
+        }
+    };
+
+    const handleCloseError = () => {
+        setError(null);
     };
 
     return (
@@ -44,6 +64,18 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
                     />
                 </Grid>
                 <Grid item xs={12}>
+                    <TextField
+                        variant="outlined"
+                        fullWidth
+                        id="joinRoomPasswordInput"
+                        label="Password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={joinRoomPassword}
+                        onChange={(e) => setJoinRoomPassword(e.target.value)}
+                    />
+                </Grid>
+                <Grid item xs={12}>
                     <Button
                         fullWidth
                         variant="contained"
@@ -64,19 +96,6 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
                         variant="outlined"
                         required
                         fullWidth
-                        id="newRoomIdInput"
-                        label="Room ID"
-                        name="newRoomId"
-                        autoComplete="new-room-id"
-                        value={newRoomId}
-                        onChange={(e) => setNewRoomId(e.target.value)}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        variant="outlined"
-                        required
-                        fullWidth
                         id="roomNameInput"
                         label="Room Name"
                         name="roomName"
@@ -85,6 +104,40 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
                         onChange={(e) => setRoomName(e.target.value)}
                     />
                 </Grid>
+                <Grid item xs={12}>
+                    <RadioGroup
+                        aria-label="roomType"
+                        name="roomType"
+                        value={roomType}
+                        onChange={handleRoomTypeChange}
+                        row
+                    >
+                        <FormControlLabel
+                            value="open"
+                            control={<Radio />}
+                            label="Open Room"
+                        />
+                        <FormControlLabel
+                            value="closed"
+                            control={<Radio />}
+                            label="Closed Room"
+                        />
+                    </RadioGroup>
+                </Grid>
+                {roomType === 'closed' && (
+                    <Grid item xs={12}>
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            id="createRoomPasswordInput"
+                            label="Password"
+                            type="password"
+                            autoComplete="new-password"
+                            value={createRoomPassword}
+                            onChange={(e) => setCreateRoomPassword(e.target.value)}
+                        />
+                    </Grid>
+                )}
                 <Grid item xs={12}>
                     <Button
                         fullWidth
@@ -96,6 +149,11 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
                     </Button>
                 </Grid>
             </Grid>
+            <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
+                <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+                    {error}
+                </Alert>
+            </Snackbar>
         </Container>
     );
 };

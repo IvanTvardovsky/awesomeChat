@@ -12,8 +12,10 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"math/rand"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func Register(c *gin.Context, db *sql.DB) {
@@ -99,11 +101,17 @@ func Login(c *gin.Context, db *sql.DB, rc *redis.Client) {
 func ConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 	chatNumber, _ := strconv.Atoi(c.Param("num"))
 	username := c.Query("username")
+	password := c.Query("password")
 	logger.Log.Traceln(username + " wants to connect to room " + c.Param("num"))
 
 	room, exists := (*rooms)[chatNumber]
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room does not exists"})
+		return
+	}
+
+	if !room.Open && room.Password != password {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Wrong password"})
 		return
 	}
 
@@ -132,19 +140,42 @@ func ConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 	}
 
 	logger.Log.Traceln(fmt.Sprintf("Current amount of users in room %d: %d", chatNumber, len((*rooms)[chatNumber].Users)))
-	informing.SetRoomName(websocket, room.Name, room.Number)
+	informing.SetRoomName(websocket, room.Name, room.ID)
 	go ws.Reader(websocket, room)
 }
 
+func getRandomAvailableRoomNumber(rooms *map[int]*structures.Room, maxRooms int) int {
+	for {
+		rand.Seed(time.Now().UnixNano())
+		randomRoom := rand.Intn(maxRooms)
+		if _, ok := (*rooms)[randomRoom]; !ok {
+			return randomRoom
+		}
+	}
+}
+
 func CreateChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
-	chatNumber, _ := strconv.Atoi(c.Param("num"))
+	//todo вынести забор аргументов в функцию?
 	username := c.Query("username")
 	roomname := c.Query("roomname")
-	logger.Log.Traceln(username + " wants to connect to room " + c.Param("num"))
+	open, err := strconv.ParseBool(c.Query("open"))
+	if err != nil {
+		//todo
+	}
+	password := c.Query("password")
+
+	chatNumber := getRandomAvailableRoomNumber(rooms, 1000)
+
+	logger.Log.Traceln(fmt.Sprintf("%s wants to connect to room %d", username, chatNumber))
 
 	room, exists := (*rooms)[chatNumber]
 	if exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room already exists"})
+		return
+	}
+
+	if !open && password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is empty"})
 		return
 	}
 
@@ -160,15 +191,17 @@ func CreateChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 		Connection: websocket,
 	}
 	room = &structures.Room{
-		Number: chatNumber,
-		Name:   roomname,
-		Users:  []*structures.ChatUser{&currentUser}, // сразу инициализация
+		ID:       chatNumber,
+		Name:     roomname,
+		Open:     open,
+		Password: password,
+		Users:    []*structures.ChatUser{&currentUser}, // сразу инициализация
 	}
 	(*rooms)[chatNumber] = room
 	logger.Log.Traceln("Created room №" + strconv.Itoa(chatNumber))
 	logger.Log.Traceln(currentUser.Name + " added to room")
 
 	logger.Log.Traceln(fmt.Sprintf("Current amount of users in room %d: %d", chatNumber, len((*rooms)[chatNumber].Users)))
-	informing.SetRoomName(websocket, room.Name, room.Number)
+	informing.SetRoomName(websocket, room.Name, room.ID)
 	go ws.Reader(websocket, room)
 }

@@ -39,9 +39,11 @@ type ChatUser struct {
 }
 
 type Room struct {
-	Number int
-	Name   string
-	Users  []*ChatUser
+	ID       int
+	Name     string
+	Open     bool
+	Password string
+	Users    []*ChatUser
 }
 
 type Message struct {

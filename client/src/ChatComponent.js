@@ -40,7 +40,7 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
                 <Box id="incomingMessages" sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', height: '100%' }}>
                     {messageHistory.map((message, index) => (
                         <div key={index}>
-                            <strong>{message.username}:</strong> {message.content}
+                            <strong>{message.username}</strong>{message.content ? `: ${message.content}` : ''}
                         </div>
                     ))}
                     <div ref={messagesEndRef} />
