@@ -124,7 +124,6 @@ func ConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 
 	users := &((*rooms)[chatNumber].Users)
 
-	// можно увеличить количество пользователей
 	if len(*users) < room.MaxUsers {
 		informing.InformUserJoined(room, username)
 		currentUser := structures.ChatUser{

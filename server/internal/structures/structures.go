@@ -34,6 +34,7 @@ type ChatRequest struct {
 }
 
 type ChatUser struct {
+	ID         int
 	Name       string
 	Connection *websocket.Conn
 }
@@ -59,4 +60,5 @@ type Message struct {
 	Type     string `json:"type"`
 	Content  []byte `json:"content"`
 	Username string `json:"username"`
+	UserID   string `json:"userID"`
 }

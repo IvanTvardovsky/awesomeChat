@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Button, TextField, Typography, Container, Grid, FormControlLabel, RadioGroup, Radio, Box, Card, CardContent, CardActions, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import {
+    Button, TextField, Typography, Container, Grid,
+    FormControlLabel, RadioGroup, Radio, Box,
+    Card, CardContent, CardActions, Dialog,
+    DialogTitle, DialogContent, DialogContentText, DialogActions
+} from '@mui/material';
 
 const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
     const [joinRoomId, setJoinRoomId] = useState('');
@@ -7,6 +12,7 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
     const [roomType, setRoomType] = useState('open'); // 'open' or 'closed'
     const [createRoomPassword, setCreateRoomPassword] = useState('');
     const [joinRoomPassword, setJoinRoomPassword] = useState('');
+    const [maxUsers, setMaxUsers] = useState(10); // Default max users
     const [availableRooms, setAvailableRooms] = useState([]);
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedRoomId, setSelectedRoomId] = useState(null);
@@ -51,7 +57,7 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
         if (roomName.trim() !== '') {
             const password = roomType === 'closed' ? createRoomPassword.trim() : '';
             const open = roomType === 'open' ? 1 : 0;
-            onCreateRoom(roomName, password, open);
+            onCreateRoom(roomName, password, open, maxUsers);
         } else {
             console.error('Room name is required');
         }
@@ -128,7 +134,7 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
                     </Button>
 
                     {/* Create Room Section */}
-                    <Typography component="h2" variant="h6">
+                    <Typography component="h2" variant="h6" style={{ marginTop: '20px' }}>
                         Create a Room
                     </Typography>
                     <TextField
@@ -141,6 +147,16 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
                         autoComplete="room-name"
                         value={roomName}
                         onChange={(e) => setRoomName(e.target.value)}
+                    />
+                    <TextField
+                        variant="outlined"
+                        required
+                        fullWidth
+                        id="maxUsersInput"
+                        label="Max Users"
+                        type="number"
+                        value={maxUsers}
+                        onChange={(e) => setMaxUsers(e.target.value)}
                     />
                     <RadioGroup
                         aria-label="roomType"
@@ -177,6 +193,7 @@ const RoomComponent = ({ onJoinRoom, onCreateRoom }) => {
                         variant="contained"
                         color="secondary"
                         onClick={handleCreateRoom}
+                        style={{ marginTop: '10px' }}
                     >
                         Create Room
                     </Button>
