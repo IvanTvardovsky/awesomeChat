@@ -3,8 +3,8 @@ package handlers
 import (
 	"awesomeChat/internal/auth"
 	"awesomeChat/internal/informing"
+	"awesomeChat/internal/myws"
 	"awesomeChat/internal/structures"
-	"awesomeChat/internal/ws"
 	"awesomeChat/package/logger"
 	"awesomeChat/package/tkn"
 	"awesomeChat/package/web"
@@ -125,7 +125,7 @@ func ConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 	users := &((*rooms)[chatNumber].Users)
 
 	// можно увеличить количество пользователей
-	if len(*users) <= 1 {
+	if len(*users) < room.MaxUsers {
 		informing.InformUserJoined(room, username)
 		currentUser := structures.ChatUser{
 			Name:       username,
@@ -141,7 +141,7 @@ func ConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 
 	logger.Log.Traceln(fmt.Sprintf("Current amount of users in room %d: %d", chatNumber, len((*rooms)[chatNumber].Users)))
 	informing.SetRoomName(websocket, room.Name, room.ID)
-	go ws.Reader(websocket, room)
+	go myws.Reader(websocket, room, rooms)
 }
 
 func getRandomAvailableRoomNumber(rooms *map[int]*structures.Room, maxRooms int) int {
@@ -163,6 +163,13 @@ func CreateChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 		//todo
 	}
 	password := c.Query("password")
+	maxUsers, err := strconv.Atoi(c.Query("maxUsers"))
+	if err != nil {
+		//todo
+	}
+	if maxUsers <= 1 {
+		maxUsers = 10
+	}
 
 	chatNumber := getRandomAvailableRoomNumber(rooms, 1000)
 
@@ -196,6 +203,7 @@ func CreateChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 		Open:     open,
 		Password: password,
 		Users:    []*structures.ChatUser{&currentUser}, // сразу инициализация
+		MaxUsers: maxUsers,
 	}
 	(*rooms)[chatNumber] = room
 	logger.Log.Traceln("Created room №" + strconv.Itoa(chatNumber))
@@ -203,5 +211,5 @@ func CreateChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 
 	logger.Log.Traceln(fmt.Sprintf("Current amount of users in room %d: %d", chatNumber, len((*rooms)[chatNumber].Users)))
 	informing.SetRoomName(websocket, room.Name, room.ID)
-	go ws.Reader(websocket, room)
+	go myws.Reader(websocket, room, rooms)
 }

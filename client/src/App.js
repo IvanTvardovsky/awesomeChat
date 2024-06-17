@@ -36,6 +36,31 @@ const App = () => {
         });
     };
 
+    const handleRegister = (username, password) => {
+        fetch('http://127.0.0.1:8080/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+        })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Registration failed');
+                }
+            })
+            .then(data => {
+                localStorage.setItem('username', username);
+                handleLogin();
+            })
+            .catch(error => {
+                console.error('Registration error:', error);
+                setError('Registration failed. Please try again.');
+            });
+    };
+
     const connectToWebSocket = (url, onSuccess) => {
         const newSocket = new WebSocket(url);
         newSocket.onopen = () => {
@@ -98,7 +123,7 @@ const App = () => {
             )}
 
             {currentView === 'registration' && (
-                <Registration onRegister={handleLogin} onGoToLogin={handleGoToLogin} />
+                <Registration onRegister={handleRegister} onGoToLogin={handleGoToLogin} />
             )}
 
             {currentView === 'chat' && (

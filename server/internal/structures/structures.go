@@ -44,6 +44,15 @@ type Room struct {
 	Open     bool
 	Password string
 	Users    []*ChatUser
+	MaxUsers int
+}
+
+type RoomForList struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Open     bool   `json:"open"`
+	Users    int    `json:"users"`
+	MaxUsers int    `json:"maxUsers"`
 }
 
 type Message struct {

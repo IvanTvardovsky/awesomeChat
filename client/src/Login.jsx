@@ -23,6 +23,7 @@ const Login = ({ onLogin, onGoToRegistration }) => {
             })
             .then(data => {
                 console.log('Login successful:', data);
+                localStorage.setItem('username', loginInput);
                 onLogin();
             })
             .catch(error => {
