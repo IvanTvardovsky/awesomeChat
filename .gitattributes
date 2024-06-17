@@ -1,4 +1,5 @@
 *.css linguist-detectable=true
 *.go linguist-detectable=true
 *.js linguist-detectable=false
+*.jsx linguist-detectable=true
 *.html linguist-detectable=true
