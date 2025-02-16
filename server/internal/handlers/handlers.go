@@ -11,7 +11,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -55,7 +54,7 @@ func Register(c *gin.Context, db *sql.DB) {
 	c.JSON(http.StatusOK, gin.H{"message": "Registration successful"})
 }
 
-func Login(c *gin.Context, db *sql.DB, rc *redis.Client) {
+func Login(c *gin.Context, db *sql.DB /*, rc *redis.Client*/) {
 	var user structures.LoginRegisterUser
 
 	err := c.ShouldBindJSON(&user)

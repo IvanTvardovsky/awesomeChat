@@ -1,7 +1,7 @@
 package config
 
 import (
-	"awesomeChat1/package/logger"
+	"awesomeChat/package/logger"
 	"github.com/ilyakaznacheev/cleanenv"
 	"sync"
 )
@@ -32,7 +32,7 @@ func GetConfig() *Config {
 	once.Do(func() {
 		logger.Log.Infoln("Reading app configuration...")
 		cfg = &Config{}
-		if err := cleanenv.ReadConfig("./../config.yml", cfg); err != nil {
+		if err := cleanenv.ReadConfig("./config/config.yml", cfg); err != nil {
 			help, _ := cleanenv.GetDescription(cfg, nil)
 			logger.Log.Errorln(help)
 			logger.Log.Fatalln(err)

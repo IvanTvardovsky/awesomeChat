@@ -4,10 +4,10 @@ listen:
   bind_ip: 0.0.0.0
   port: 8080
 storage:
-  host: localhost
+  host: db
   port: 5432
   database: awesomeChat
   username: postgres
-  password: bebra123
+  password: admin
 authorization:
   key: a-big-secret

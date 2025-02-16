@@ -10,7 +10,6 @@ import (
 	"awesomeChat/package/web"
 	"database/sql"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"io"
 	"sort"
 	"time"
@@ -25,7 +24,7 @@ func AuthMiddleware() gin.HandlerFunc {
 func main() {
 	cfg := config.GetConfig()
 	db := database.InitPostgres(cfg)
-	redisClient := database.InitRedis(cfg)
+	//redisClient := database.InitRedis(cfg)
 
 	defer func(db *sql.DB) {
 		err := db.Close()
@@ -33,12 +32,12 @@ func main() {
 			logger.Log.Errorln("Error closing PG database: " + err.Error())
 		}
 	}(db)
-	defer func(redisClient *redis.Client) {
-		err := redisClient.Close()
-		if err != nil {
-			logger.Log.Errorln("Error closing Redis database: " + err.Error())
-		}
-	}(redisClient)
+	//defer func(redisClient *redis.Client) {
+	//	err := redisClient.Close()
+	//	if err != nil {
+	//		logger.Log.Errorln("Error closing Redis database: " + err.Error())
+	//	}
+	//}(redisClient)
 
 	logger.Log.Infoln("Starting service...")
 	router := gin.Default()
@@ -52,7 +51,7 @@ func main() {
 	logger.Log.Infoln("Serving handlers...")
 
 	router.POST("/login", func(c *gin.Context) {
-		handlers.Login(c, db, redisClient)
+		handlers.Login(c, db /*, redisClient*/)
 	})
 	router.GET("/logout", func(c *gin.Context) {
 		//login(c, db) //todo
