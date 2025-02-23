@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"awesomeChat/internal/auth"
 	"awesomeChat/internal/informing"
 	"awesomeChat/internal/myws"
 	"awesomeChat/internal/structures"
@@ -9,21 +8,23 @@ import (
 	"awesomeChat/package/tkn"
 	"awesomeChat/package/web"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
 func Register(c *gin.Context, db *sql.DB) {
-	var user structures.LoginRegisterUser
+	var user structures.RegisterRequest
 
-	err := c.ShouldBindJSON(&user)
-	if err != nil {
-		logger.Log.Errorln("Error unmarshalling JSON: " + err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&user); err != nil {
+		logger.Log.Errorln("Error binding JSON:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
@@ -32,69 +33,117 @@ func Register(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	res, err := auth.IsUsernameTaken(user.Username, db)
-	if err != nil {
-		logger.Log.Errorln("Error querying database: " + err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
-		return
-	}
-	if res == true {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Username is already taken"})
+	if !isValidEmail(user.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
 		return
 	}
 
-	user.PasswordHash, err = tkn.HashPassword(user.Password)
+	if taken, err := isCredentialTaken(db, "username", user.Username); err != nil || taken {
+		handleCredentialCheck(c, err, taken, "Username is already taken")
+		return
+	}
 
-	_, err = db.Exec("INSERT INTO users (username, password_hash) VALUES ($1, $2)", user.Username, user.PasswordHash)
+	if taken, err := isCredentialTaken(db, "email", user.Email); err != nil || taken {
+		handleCredentialCheck(c, err, taken, "Email is already taken")
+		return
+	}
+
+	hashedPassword, err := tkn.HashPassword(user.Password)
 	if err != nil {
-		fmt.Println("Error inserting data:", err)
+		logger.Log.Errorln("Password hash error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	if _, err := db.Exec(
+		"INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3)",
+		user.Username,
+		user.Email,
+		hashedPassword,
+	); err != nil {
+		logger.Log.Errorln("Database insert error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Registration successful"})
 }
 
-func Login(c *gin.Context, db *sql.DB /*, rc *redis.Client*/) {
-	var user structures.LoginRegisterUser
+func isCredentialTaken(db *sql.DB, field string, value string) (bool, error) {
+	var count int
+	err := db.QueryRow(
+		fmt.Sprintf("SELECT COUNT(*) FROM users WHERE %s = $1", field),
+		value,
+	).Scan(&count)
+	return count > 0, err
+}
 
-	err := c.ShouldBindJSON(&user)
+func handleCredentialCheck(c *gin.Context, err error, taken bool, message string) {
 	if err != nil {
-		logger.Log.Errorln("Error unmarshalling JSON: " + err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		logger.Log.Errorln("Database query error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	if taken {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+	}
+}
+
+func isValidEmail(email string) bool {
+	emailRegex := `^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`
+	return regexp.MustCompile(emailRegex).MatchString(strings.ToLower(email))
+}
+
+func Login(c *gin.Context, db *sql.DB) {
+	var credentials structures.LoginRequest
+
+	if err := c.ShouldBindJSON(&credentials); err != nil {
+		logger.Log.Errorln("Error binding JSON:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	logger.Log.Infoln(user.Username, user.Password)
+	logger.Log.Traceln(credentials)
 
-	var databaseUser structures.LoginRegisterUser
-	err = db.QueryRow("SELECT user_id, password_hash FROM users WHERE username = $1", user.Username).Scan(&databaseUser.ID, &databaseUser.PasswordHash)
+	var user struct {
+		ID           int
+		PasswordHash string
+	}
+
+	err := db.QueryRow(
+		"SELECT user_id, password_hash FROM users WHERE username = $1 OR email = $1",
+		credentials.Identifier,
+	).Scan(&user.ID, &user.PasswordHash)
+
 	if err != nil {
-		logger.Log.Errorln("Error querying database: " + err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Log.Traceln("sql Invalid credentials")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		} else {
+			logger.Log.Errorln("Database query error:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
 		return
 	}
 
-	if tkn.CheckPasswordHash(user.Password, databaseUser.PasswordHash) == false {
+	if !tkn.CheckPasswordHash(credentials.Password, user.PasswordHash) {
+		logger.Log.Traceln("hash Invalid credentials")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	//SID := tkn.RandString(32)
+	tokenString, err := tkn.GenerateJWT(user.ID)
+	if err != nil {
+		logger.Log.Errorln("Token generation error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
 
-	//cookie, err := c.Cookie("censorship")
-
-	str := "censorship"
-
-	/*if err != nil {
-		cookie = "NotSet"
-		c.SetCookie("censorship", str, 30, "/", "localhost", false, false)
-	}*/
-
-	c.SetCookie("censorship", str, 900, "/", "localhost", false, true)
-
-	//err = rc.Set(c.Request.Context(), SID, "user_id", 2*time.Hour).Err()
-
-	c.JSON(http.StatusOK, gin.H{"message": "Logged in"})
+	c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"user_id": user.ID,
+	})
 }
 
 func ConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {

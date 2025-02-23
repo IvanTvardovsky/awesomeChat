@@ -15,14 +15,29 @@ import (
 	"time"
 )
 
+// todo
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		logger.Log.Infoln("HI IM censorship")
+		//tokenString, err := c.Cookie("auth_token")
+		//if err != nil {
+		//	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		//	return
+		//}
+		//
+		//claims, err := tkn.ParseJWT(tokenString)
+		//if err != nil {
+		//	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		//	return
+		//}
+		//
+		//c.Set("userID", claims.UserID)
+		c.Next()
 	}
 }
 
 func main() {
 	cfg := config.GetConfig()
+	time.Sleep(5 * time.Second)
 	db := database.InitPostgres(cfg)
 	//redisClient := database.InitRedis(cfg)
 
@@ -68,6 +83,18 @@ func main() {
 	router.GET("/roomUpdates", func(c *gin.Context) {
 		server.HandleConnections(c.Writer, c.Request, &rooms)
 	})
+	router.GET("/categories", func(c *gin.Context) {
+		handlers.GetCategories(c, db)
+	})
+	router.GET("/categories/:id", func(c *gin.Context) {
+		handlers.GetCategory(c, db)
+	})
+	router.GET("/search", func(c *gin.Context) {
+		handlers.SearchTopics(c, db)
+	})
+	//router.POST("/categories/:id", func(c *gin.Context) {
+	//	handlers.UpdateStatistics(c, db)
+	//})
 
 	go server.HandleMessages()
 	go func() {

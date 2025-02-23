@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import LoginComponent from './LoginComponent';
 
 const Login = ({ onLogin, onGoToRegistration }) => {
-    const [loginInput, setLoginInput] = useState('');
-    const [passwordInput, setPasswordInput] = useState('');
+    const [identifier, setIdentifier] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
     const handleLogin = () => {
@@ -12,42 +12,29 @@ const Login = ({ onLogin, onGoToRegistration }) => {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username: loginInput, password: passwordInput }),
+            body: JSON.stringify({ username: identifier, password }),
             credentials: 'include',
         })
             .then(response => {
-                if (!response.ok) {
-                    throw new Error('Login failed');
-                }
+                if (!response.ok) throw new Error('Login failed');
                 return response.json();
             })
             .then(data => {
-                console.log('Login successful:', data);
-                localStorage.setItem('username', loginInput);
+                localStorage.setItem('username', identifier);
                 onLogin();
             })
-            .catch(error => {
-                setError('Login failed. Please check your credentials.');
-                console.error('Error during login:', error);
-            });
-    };
-
-    const handleInputChange = event => {
-        const { id, value } = event.target;
-        if (id === 'loginInput') {
-            setLoginInput(value);
-        } else if (id === 'passwordInput') {
-            setPasswordInput(value);
-        }
+            .catch(() => setError('Invalid credentials. Please try again.'));
     };
 
     return (
         <LoginComponent
-            isRegistration={false}
-            onLogin={handleLogin}
-            onRegistration={onGoToRegistration}
+            identifier={identifier}
+            password={password}
             error={error}
-            handleInputChange={handleInputChange}
+            onIdentifierChange={(e) => setIdentifier(e.target.value)}
+            onPasswordChange={(e) => setPassword(e.target.value)}
+            onLogin={handleLogin}
+            onGoToRegistration={onGoToRegistration}
         />
     );
 };

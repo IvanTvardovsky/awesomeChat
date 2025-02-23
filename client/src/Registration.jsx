@@ -1,88 +1,45 @@
 import React, { useState } from 'react';
-import { TextField, Button, Typography, Container, Grid, Snackbar, Alert } from '@mui/material';
+import RegistrationComponent from './RegistrationComponent';
 
 const Registration = ({ onRegister, onGoToLogin }) => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState(null);
+    const [formData, setFormData] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+    });
+    const [error, setError] = useState('');
 
     const handleRegister = () => {
-        if (username.trim() === '' || password.trim() === '') {
-            setError('Username and password are required');
-        } else {
-            // Call the onRegister function passed as a prop with the username and password
-            onRegister(username, password);
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            return;
         }
+
+        fetch('http://localhost:8080/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+        })
+            .then(response => {
+                if (!response.ok) throw new Error('Registration failed');
+                onGoToLogin();
+            })
+            .catch(error => setError(error.message));
     };
 
-    const handleCloseError = () => {
-        setError(null);
+    const handleChange = (field) => (e) => {
+        setFormData(prev => ({ ...prev, [field]: e.target.value }));
     };
 
     return (
-        <Container component="main" maxWidth="xs">
-            <div>
-                <Typography component="h1" variant="h5">
-                    Register
-                </Typography>
-                <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                        <TextField
-                            variant="outlined"
-                            required
-                            fullWidth
-                            id="username"
-                            label="Username"
-                            name="username"
-                            autoComplete="username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <TextField
-                            variant="outlined"
-                            required
-                            fullWidth
-                            name="password"
-                            label="Password"
-                            type="password"
-                            id="password"
-                            autoComplete="current-password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <Button
-                            fullWidth
-                            variant="contained"
-                            color="primary"
-                            onClick={handleRegister}
-                        >
-                            Register
-                        </Button>
-                    </Grid>
-                    <Grid item xs={12}>
-                        <Button
-                            fullWidth
-                            variant="text"
-                            color="secondary"
-                            onClick={onGoToLogin}
-                        >
-                            Already have an account? Login
-                        </Button>
-                    </Grid>
-                </Grid>
-                {error && (
-                    <Snackbar open={true} autoHideDuration={6000} onClose={handleCloseError}>
-                        <Alert onClose={handleCloseError} severity="error">
-                            {error}
-                        </Alert>
-                    </Snackbar>
-                )}
-            </div>
-        </Container>
+        <RegistrationComponent
+            formData={formData}
+            error={error}
+            onChange={handleChange}
+            onRegister={handleRegister}
+            onGoToLogin={onGoToLogin}
+        />
     );
 };
 

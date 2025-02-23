@@ -3,21 +3,29 @@ import Login from './Login';
 import Registration from './Registration';
 import ChatComponent from './ChatComponent';
 import RoomComponent from './RoomComponent';
+import Dashboard from './Dashboard';
 import { Container, CssBaseline, Snackbar, Alert } from '@mui/material';
 
 const App = () => {
     const [currentView, setCurrentView] = useState('login');
+    const [selectedSubtopic, setSelectedSubtopic] = useState(null);
     const [socket, setSocket] = useState(null);
     const [messageHistory, setMessageHistory] = useState([]);
     const [roomName, setRoomName] = useState('AwesomeChat');
     const [error, setError] = useState(null);
+    const [isConnecting, setIsConnecting] = useState(false);
 
     const handleLogin = () => {
-        setCurrentView('room');
+        setCurrentView('dashboard');
     };
 
     const handleRegistration = () => {
         setCurrentView('registration');
+    };
+
+    const handleStartDiscussion = (subtopic) => {
+        setSelectedSubtopic(subtopic);
+        setCurrentView('chat');
     };
 
     const handleJoinRoom = (roomId, password) => {
@@ -64,40 +72,42 @@ const App = () => {
 
     const connectToWebSocket = (url, onSuccess) => {
         const newSocket = new WebSocket(url);
+
         newSocket.onopen = () => {
-            console.log('Successfully connected to chat room');
+            console.log('Connected to chat room');
             onSuccess();
         };
+
         newSocket.onclose = (event) => {
-            console.log('Socket Closed Connection: ', event);
-            setError('Failed to connect to the chat room');
+            console.log('Connection closed:', event);
+            setError(event.reason || 'Connection closed');
         };
+
         newSocket.onerror = (error) => {
-            console.log('Socket Error: ', error);
-            setError('An error occurred while connecting to the chat room');
+            console.error('WebSocket error:', error);
+            setError('Connection error');
         };
+
         newSocket.onmessage = (e) => {
-            const messageObj = JSON.parse(e.data);
-            if (messageObj.type === 'usual') {
-                setMessageHistory((prevMessages) => [
-                    ...prevMessages,
-                    { content: messageObj.content, username: messageObj.username }
-                ]);
-            } else if (messageObj.type === 'userLeft' || messageObj.type === 'userJoined') {
-                const decodedContent = atob(messageObj.content);
-                console.log(decodedContent)
-                setMessageHistory((prevMessages) => [
-                    ...prevMessages,
-                    { content: '', username: decodedContent }
-                ]);
-            } else if (messageObj.type === 'setRoomName') {
-                const decodedContent = atob(messageObj.content);
-                setRoomName(decodedContent);
-            } else {
-                console.error('Неизвестный тип сообщения:', messageObj.type);
-            }
+            const message = JSON.parse(e.data);
+            setMessageHistory(prev => [...prev, {
+                content: message.content,
+                username: message.username,
+                type: message.type,
+                timestamp: new Date().toISOString()
+            }]);
         };
+
         setSocket(newSocket);
+    };
+
+
+    const handleInputChange = (e) => {
+        setMessageInput(e.target.value);
+
+        if (socket?.readyState === WebSocket.OPEN) {
+
+        }
     };
 
     const handleLeaveChat = () => {
@@ -117,7 +127,7 @@ const App = () => {
     };
 
     return (
-        <Container component="main" maxWidth="md">
+        <Container component="main" maxWidth={false} disableGutters>
             <CssBaseline />
             {currentView === 'login' && (
                 <Login onLogin={handleLogin} onGoToRegistration={handleRegistration} />
@@ -127,14 +137,17 @@ const App = () => {
                 <Registration onRegister={handleRegister} onGoToLogin={handleGoToLogin} />
             )}
 
+            {currentView === 'dashboard' && (
+                <Dashboard onStartDiscussion={handleStartDiscussion} />
+            )}
+
             {currentView === 'chat' && (
                 <ChatComponent
                     socket={socket}
                     messageHistory={messageHistory}
-                    roomName={roomName}
-                    onUpdateRoomName={setRoomName}
-                    onLeaveChat={handleLeaveChat}
                     setMessageHistory={setMessageHistory}
+                    roomName={roomName}
+                    onLeaveChat={handleLeaveChat}
                 />
             )}
 
