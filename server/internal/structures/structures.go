@@ -21,17 +21,6 @@ type StorageConfig struct {
 	Password string `yaml:"password"`
 }
 
-type LoginRequest struct {
-	Identifier string `json:"username"` //todo json:identifier
-	Password   string `json:"password"`
-}
-
-type RegisterRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 type ChatRequest struct {
 	ChatNumber int `json:"chatNumber"`
 }

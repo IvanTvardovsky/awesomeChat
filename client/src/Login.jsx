@@ -12,7 +12,10 @@ const Login = ({ onLogin, onGoToRegistration }) => {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username: identifier, password }),
+            body: JSON.stringify({
+                identifier: identifier,
+                password: password
+            }),
             credentials: 'include',
         })
             .then(response => {
@@ -20,7 +23,12 @@ const Login = ({ onLogin, onGoToRegistration }) => {
                 return response.json();
             })
             .then(data => {
-                localStorage.setItem('username', identifier);
+                // Добавлена проверка наличия username
+                if (data.username) {
+                    localStorage.setItem('username', data.username);
+                } else {
+                    localStorage.setItem('username', identifier);
+                }
                 onLogin();
             })
             .catch(() => setError('Invalid credentials. Please try again.'));

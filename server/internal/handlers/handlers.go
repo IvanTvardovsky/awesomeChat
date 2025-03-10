@@ -103,17 +103,16 @@ func Login(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	logger.Log.Traceln(credentials)
-
 	var user struct {
 		ID           int
+		Username     string
 		PasswordHash string
 	}
 
 	err := db.QueryRow(
-		"SELECT user_id, password_hash FROM users WHERE username = $1 OR email = $1",
-		credentials.Identifier,
-	).Scan(&user.ID, &user.PasswordHash)
+		"SELECT user_id, username, password_hash FROM users WHERE username = $1 OR email = $1",
+		credentials.Username,
+	).Scan(&user.ID, &user.Username, &user.PasswordHash)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
