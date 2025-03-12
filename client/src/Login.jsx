@@ -23,7 +23,6 @@ const Login = ({ onLogin, onGoToRegistration }) => {
                 return response.json();
             })
             .then(data => {
-                // Добавлена проверка наличия username
                 if (data.username) {
                     localStorage.setItem('username', data.username);
                 } else {

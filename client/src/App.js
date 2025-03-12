@@ -28,9 +28,9 @@ const App = () => {
         });
     };
 
-    const handleCreateRoom = (roomName, password, open, maxUsers) => {
+    const handleCreateRoom = (roomName, password, open, maxUsers, topic, subtopic) => {
         const username = localStorage.getItem('username');
-        const socketUrl = `ws://127.0.0.1:8080/createChatroom/?username=${encodeURIComponent(username)}&roomname=${encodeURIComponent(roomName)}&open=${open}&password=${encodeURIComponent(password)}&maxUsers=${maxUsers}`;
+        const socketUrl = `ws://127.0.0.1:8080/createChatroom/?username=${encodeURIComponent(username)}&roomname=${encodeURIComponent(roomName)}&open=${open}&password=${encodeURIComponent(password)}&maxUsers=${maxUsers}&topic=${topic}&subtopic=${subtopic}`;
         connectToWebSocket(socketUrl, () => {
             setCurrentView('chat');
         });

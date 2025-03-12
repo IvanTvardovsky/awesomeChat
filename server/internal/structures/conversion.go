@@ -5,11 +5,13 @@ func MakeRoomList(rooms *map[int]*Room) *[]RoomForList {
 
 	for _, room := range *rooms {
 		roomList = append(roomList, RoomForList{
-			ID:       room.ID,
-			Name:     room.Name,
-			Open:     room.Open,
-			Users:    len(room.Users),
-			MaxUsers: room.MaxUsers,
+			ID:         room.ID,
+			Name:       room.Name,
+			Open:       room.Open,
+			Users:      len(room.Users),
+			MaxUsers:   room.MaxUsers,
+			TopicID:    room.TopicID,
+			SubtopicID: room.SubtopicID,
 		})
 	}
 
