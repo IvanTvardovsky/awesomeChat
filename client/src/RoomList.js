@@ -1,0 +1,321 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+    Button,
+    TextField,
+    Typography,
+    Container,
+    Grid,
+    Card,
+    CardContent,
+    CardActions,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    MenuItem,
+    Box
+} from '@mui/material';
+
+const topics = [
+    { id: 1, title: 'Технологии', icon: '💻' },
+    { id: 2, title: 'Здоровье и благополучие', icon: '🏥' },
+    { id: 3, title: 'Образование и саморазвитие', icon: '📚' },
+    { id: 4, title: 'Искусство и культура', icon: '🎨' },
+    { id: 5, title: 'Путешествия и приключения', icon: '✈️' },
+    { id: 6, title: 'Экология и устойчивое развитие', icon: '🌱' }
+];
+
+const subtopics = {
+    1: [
+        { id: 101, title: 'Как ИИ влияет на рынок труда?' },
+        { id: 102, title: 'Этика в разработке новых технологий' },
+        { id: 103, title: 'Развитие квантовых вычислений' },
+        { id: 104, title: 'Интернет вещей (IoT)' },
+        { id: 105, title: 'Кибербезопасность' }
+    ],
+    2: [
+        { id: 201, title: 'Здоровое питание' },
+        { id: 202, title: 'Физическая активность' },
+        { id: 203, title: 'Психическое здоровье' },
+        { id: 204, title: 'Медитация и релаксация' },
+        { id: 205, title: 'Профилактика заболеваний' }
+    ],
+    3: [
+        { id: 301, title: 'Онлайн-курсы' },
+        { id: 302, title: 'Чтение и литература' },
+        { id: 303, title: 'Языковое обучение' },
+        { id: 304, title: 'Навыки будущего' },
+        { id: 305, title: 'Образовательные технологии' }
+    ],
+    4: [
+        { id: 401, title: 'Современное искусство' },
+        { id: 402, title: 'Классическая музыка' },
+        { id: 403, title: 'Кино и театр' },
+        { id: 404, title: 'Литература и поэзия' },
+        { id: 405, title: 'Культурное наследие' }
+    ],
+    5: [
+        { id: 501, title: 'Популярные направления' },
+        { id: 502, title: 'Культурные путешествия' },
+        { id: 503, title: 'Приключенческий туризм' },
+        { id: 504, title: 'Путешествия с семьей' },
+        { id: 505, title: 'Фотография путешествий' }
+    ],
+    6: [
+        { id: 601, title: 'Возобновляемая энергия' },
+        { id: 602, title: 'Эко-инициативы' },
+        { id: 603, title: 'Зеленые технологии' },
+        { id: 604, title: 'Сохранение биоразнообразия' },
+        { id: 605, title: 'Устойчивое потребление' }
+    ]
+};
+
+const getTopicNameById = (topicId) => {
+    const topic = topics.find((t) => t.id === topicId);
+    return topic ? `${topic.icon} ${topic.title}` : 'N/A';
+};
+
+const getSubtopicNameById = (topicId, subtopicId) => {
+    if (!topicId || !subtopicId) return 'N/A';
+    const group = subtopics[topicId];
+    if (!group) return 'N/A';
+    const sub = group.find((s) => s.id === subtopicId);
+    return sub ? sub.title : 'N/A';
+};
+
+const RoomList = ({ onJoinRoom }) => {
+    const [availableRooms, setAvailableRooms] = useState([]);
+    const [filterTopic, setFilterTopic] = useState(0); // 0 – все топики
+    const [filterSubtopic, setFilterSubtopic] = useState(0); // 0 – все субтопики
+    const socketRef = useRef(null);
+
+    // состояния для диалога прямого входа по ID
+    const [openDirectJoin, setOpenDirectJoin] = useState(false);
+    const [directRoomId, setDirectRoomId] = useState('');
+    const [directRoomPassword, setDirectRoomPassword] = useState('');
+
+    // состояния для диалога ввода пароля для закрытых комнат
+    const [openDialog, setOpenDialog] = useState(false);
+    const [selectedRoomId, setSelectedRoomId] = useState(null);
+    const [dialogPassword, setDialogPassword] = useState('');
+
+    useEffect(() => {
+        const socket = new WebSocket('ws://127.0.0.1:8080/roomUpdates');
+        socketRef.current = socket;
+
+        socket.onopen = () => {
+            console.log('Connected to room updates WebSocket');
+            sendFilterUpdate(filterTopic, filterSubtopic);
+        };
+
+        socket.onmessage = (event) => {
+            const rooms = JSON.parse(event.data);
+            setAvailableRooms(rooms);
+        };
+
+        socket.onclose = (event) => {
+            console.log('Room updates socket closed:', event);
+        };
+
+        socket.onerror = (error) => {
+            console.log('Room updates socket error:', error);
+        };
+
+        return () => {
+            socket.close();
+        };
+    }, []);
+
+    const sendFilterUpdate = (topic, subtopic) => {
+        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+            const filterData = { type: 'filter', topic, subtopic };
+            socketRef.current.send(JSON.stringify(filterData));
+        }
+    };
+
+    const handleFilterTopicChange = (e) => {
+        const newTopic = parseInt(e.target.value, 10);
+        setFilterTopic(newTopic);
+        setFilterSubtopic(0);
+        sendFilterUpdate(newTopic, 0);
+    };
+
+    const handleFilterSubtopicChange = (e) => {
+        const newSubtopic = parseInt(e.target.value, 10);
+        setFilterSubtopic(newSubtopic);
+        sendFilterUpdate(filterTopic, newSubtopic);
+    };
+
+    const handleJoinRoomClick = (room) => {
+        if (room.open) {
+            onJoinRoom(room.id, '');
+        } else {
+            setSelectedRoomId(room.id);
+            setOpenDialog(true);
+        }
+    };
+
+    const handleDialogClose = () => {
+        setOpenDialog(false);
+        setDialogPassword('');
+        setSelectedRoomId(null);
+    };
+
+    const handleJoinRoomWithPassword = () => {
+        if (selectedRoomId !== null) {
+            onJoinRoom(selectedRoomId, dialogPassword);
+            handleDialogClose();
+        }
+    };
+
+    // обработка прямого входа по ID
+    const handleDirectJoin = () => {
+        if (directRoomId.trim() !== '') {
+            onJoinRoom(directRoomId.trim(), directRoomPassword.trim());
+            setOpenDirectJoin(false);
+            setDirectRoomId('');
+            setDirectRoomPassword('');
+        }
+    };
+
+    return (
+        <Container component="main" maxWidth="md">
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h5" component="h2">
+                    Доступные комнаты
+                </Typography>
+                <Button variant="outlined" onClick={() => setOpenDirectJoin(true)}>
+                    Войти по ID комнаты
+                </Button>
+            </Box>
+            {/* фильтр комнат */}
+            <Box display="flex" gap={2} mb={2}>
+                <TextField
+                    select
+                    label="Топик"
+                    value={filterTopic}
+                    onChange={handleFilterTopicChange}
+                >
+                    <MenuItem value={0}>Все топики</MenuItem>
+                    {topics.map((topic) => (
+                        <MenuItem key={topic.id} value={topic.id}>
+                            {topic.title}
+                        </MenuItem>
+                    ))}
+                </TextField>
+                <TextField
+                    select
+                    label="Субтопик"
+                    value={filterSubtopic}
+                    onChange={handleFilterSubtopicChange}
+                    disabled={filterTopic === 0}
+                >
+                    <MenuItem value={0}>Все субтопики</MenuItem>
+                    {filterTopic !== 0 &&
+                        subtopics[filterTopic]?.map((sub) => (
+                            <MenuItem key={sub.id} value={sub.id}>
+                                {sub.title}
+                            </MenuItem>
+                        ))}
+                </TextField>
+            </Box>
+
+            {/* сетка доступных комнат */}
+            <Grid container spacing={2}>
+                {availableRooms.map((room) => (
+                    <Grid item xs={12} sm={6} md={4} key={room.id}>
+                        <Card variant="outlined">
+                            <CardContent>
+                                <Typography variant="h5">{room.name}</Typography>
+                                <Typography color="textSecondary">
+                                    Room ID: {room.id}
+                                </Typography>
+                                <Typography color="textSecondary">
+                                    {room.open ? 'Открытая' : 'Закрытая'}
+                                </Typography>
+                                <Typography variant="body2">
+                                    Users: {room.users}/{room.maxUsers}
+                                </Typography>
+                                <Typography color="textSecondary">
+                                    Топик: {getTopicNameById(room.topic)}
+                                </Typography>
+                                <Typography color="textSecondary">
+                                    Субтопик: {getSubtopicNameById(room.topic, room.subtopic)}
+                                </Typography>
+                            </CardContent>
+                            <CardActions>
+                                <Button size="small" onClick={() => handleJoinRoomClick(room)}>
+                                    Присоединиться
+                                </Button>
+                            </CardActions>
+                        </Card>
+                    </Grid>
+                ))}
+            </Grid>
+
+            {/* диалог для прямого входа по ID комнаты */}
+            <Dialog open={openDirectJoin} onClose={() => setOpenDirectJoin(false)}>
+                <DialogTitle>Вход по ID комнаты</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Введите ID комнаты и, если требуется, пароль для прямого входа.
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Room ID"
+                        fullWidth
+                        value={directRoomId}
+                        onChange={(e) => setDirectRoomId(e.target.value)}
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Пароль"
+                        type="password"
+                        fullWidth
+                        value={directRoomPassword}
+                        onChange={(e) => setDirectRoomPassword(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenDirectJoin(false)} color="primary">
+                        Отмена
+                    </Button>
+                    <Button onClick={handleDirectJoin} color="primary">
+                        Войти
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* диалог ввода пароля для закрытых комнат */}
+            <Dialog open={openDialog} onClose={handleDialogClose}>
+                <DialogTitle>Введите пароль</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Эта комната закрыта. Пожалуйста, введите пароль для входа.
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Пароль"
+                        type="password"
+                        fullWidth
+                        value={dialogPassword}
+                        onChange={(e) => setDialogPassword(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleDialogClose} color="primary">
+                        Отмена
+                    </Button>
+                    <Button onClick={handleJoinRoomWithPassword} color="primary">
+                        Войти
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Container>
+    );
+};
+
+export default RoomList;

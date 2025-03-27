@@ -1,9 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Login from './Login';
 import Registration from './Registration';
 import ChatComponent from './ChatComponent';
-import RoomComponent from './RoomComponent';
-import { Container, CssBaseline, Snackbar, Alert } from '@mui/material';
+import RoomContainer from './RoomContainer';
+import {
+    Container,
+    CssBaseline,
+    Snackbar,
+    Alert,
+    AppBar,
+    Toolbar,
+    Button
+} from '@mui/material';
+
+const ArchiveComponent = () => (
+    <Container>
+        <div style={{ marginTop: 32 }}>
+            <h4>Архив</h4>
+            <p>Список завершенных чатов будет здесь</p>
+        </div>
+    </Container>
+);
+
+const ProfileComponent = () => (
+    <Container>
+        <div style={{ marginTop: 32 }}>
+            <h4>Профиль</h4>
+            <p>Информация о пользователе будет здесь</p>
+        </div>
+    </Container>
+);
+
+const LeaderboardComponent = () => (
+    <Container>
+        <div style={{ marginTop: 32 }}>
+            <h4>Лидерборд</h4>
+            <p>Рейтинг пользователей будет здесь</p>
+        </div>
+    </Container>
+);
 
 const App = () => {
     const [currentView, setCurrentView] = useState('login');
@@ -11,14 +46,39 @@ const App = () => {
     const [messageHistory, setMessageHistory] = useState([]);
     const [roomName, setRoomName] = useState('AwesomeChat');
     const [error, setError] = useState(null);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const username = localStorage.getItem('username');
+        if (username) {
+            setIsLoggedIn(true);
+            setCurrentView('room');
+        }
+    }, []);
 
     const handleLogin = () => {
+        setIsLoggedIn(true);
         setCurrentView('room');
     };
 
     const handleRegistration = () => {
         setCurrentView('registration');
     };
+
+    const navigateTo = (view) => {
+        setCurrentView(view);
+    };
+
+    const NavigationBar = () => (
+        <AppBar position="static">
+            <Toolbar>
+                <Button color="inherit" onClick={() => navigateTo('room')}>Комнаты</Button>
+                <Button color="inherit" onClick={() => navigateTo('archive')}>Архив</Button>
+                <Button color="inherit" onClick={() => navigateTo('profile')}>Профиль</Button>
+                <Button color="inherit" onClick={() => navigateTo('leaderboard')}>Лидерборд</Button>
+            </Toolbar>
+        </AppBar>
+    );
 
     const handleJoinRoom = (roomId, password) => {
         const username = localStorage.getItem('username');
@@ -35,7 +95,6 @@ const App = () => {
             setCurrentView('chat');
         });
     };
-
 
     const handleRegister = (username, password) => {
         fetch('http://127.0.0.1:8080/register', {
@@ -85,7 +144,6 @@ const App = () => {
                 ]);
             } else if (messageObj.type === 'userLeft' || messageObj.type === 'userJoined') {
                 const decodedContent = atob(messageObj.content);
-                console.log(decodedContent)
                 setMessageHistory((prevMessages) => [
                     ...prevMessages,
                     { content: '', username: decodedContent }
@@ -117,37 +175,42 @@ const App = () => {
     };
 
     return (
-        <Container component="main" maxWidth="md">
+        <>
             <CssBaseline />
-            {currentView === 'login' && (
-                <Login onLogin={handleLogin} onGoToRegistration={handleRegistration} />
-            )}
-
-            {currentView === 'registration' && (
-                <Registration onRegister={handleRegister} onGoToLogin={handleGoToLogin} />
-            )}
-
-            {currentView === 'chat' && (
-                <ChatComponent
-                    socket={socket}
-                    messageHistory={messageHistory}
-                    roomName={roomName}
-                    onUpdateRoomName={setRoomName}
-                    onLeaveChat={handleLeaveChat}
-                    setMessageHistory={setMessageHistory}
-                />
-            )}
-
-            {currentView === 'room' && (
-                <RoomComponent onJoinRoom={handleJoinRoom} onCreateRoom={handleCreateRoom} />
-            )}
-
-            <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
-                <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
-                    {error}
-                </Alert>
-            </Snackbar>
-        </Container>
+            {isLoggedIn && <NavigationBar />}
+            <Container component="main" maxWidth="md" style={{ marginTop: 32 }}>
+                {currentView === 'login' && (
+                    <Login onLogin={handleLogin} onGoToRegistration={handleRegistration} />
+                )}
+                {currentView === 'registration' && (
+                    <Registration onRegister={handleRegister} onGoToLogin={handleGoToLogin} />
+                )}
+                {currentView === 'chat' && (
+                    <ChatComponent
+                        socket={socket}
+                        messageHistory={messageHistory}
+                        roomName={roomName}
+                        onUpdateRoomName={setRoomName}
+                        onLeaveChat={handleLeaveChat}
+                        setMessageHistory={setMessageHistory}
+                    />
+                )}
+                {currentView === 'room' && (
+                    <RoomContainer
+                        onJoinRoom={handleJoinRoom}
+                        onCreateRoom={handleCreateRoom}
+                    />
+                )}
+                {currentView === 'archive' && <ArchiveComponent />}
+                {currentView === 'profile' && <ProfileComponent />}
+                {currentView === 'leaderboard' && <LeaderboardComponent />}
+                <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
+                    <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+                        {error}
+                    </Alert>
+                </Snackbar>
+            </Container>
+        </>
     );
 };
 

@@ -45,7 +45,6 @@ func Reader(conn *websocket.Conn, room *structures.Room, rooms *map[int]*structu
 			for _, user := range room.Users {
 				if user.Connection != conn { // отправить сообщение всем пользователям в комнате, кроме отправителя
 					err = user.Connection.WriteMessage(websocket.TextMessage, p)
-					fmt.Println("popa:", string(p))
 					if err != nil {
 						logger.Log.Errorln(err)
 					}
