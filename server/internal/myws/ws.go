@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"net/http"
 	"sync"
+	"time"
 )
 
 func Reader(conn *websocket.Conn, room *structures.Room, rooms *map[int]*structures.Room) {
@@ -37,10 +38,14 @@ func Reader(conn *websocket.Conn, room *structures.Room, rooms *map[int]*structu
 		}
 		logger.Log.Traceln("Received message:", string(p))
 
-		var receivedMessage structures.Message
-		err = json.Unmarshal(p, &receivedMessage)
+		var msg structures.Message
+		err = json.Unmarshal(p, &msg)
+		if err != nil {
+			logger.Log.Traceln("Unmarshal message error: " + err.Error())
+			return
+		}
 
-		switch receivedMessage.Type {
+		switch msg.Type {
 		case "usual":
 			for _, user := range room.Users {
 				if user.Connection != conn { // отправить сообщение всем пользователям в комнате, кроме отправителя
@@ -50,6 +55,51 @@ func Reader(conn *websocket.Conn, room *structures.Room, rooms *map[int]*structu
 					}
 				}
 			}
+		case "ready_check":
+			handleReadyCheck(room, conn, msg.Username)
+		case "rate":
+			//handleRating(room, msg)
+		}
+	}
+}
+
+func handleReadyCheck(room *structures.Room, conn *websocket.Conn, username string) {
+	room.Mu.Lock()
+	defer room.Mu.Unlock()
+
+	room.ReadyUsers[username] = true
+
+	if len(room.ReadyUsers) == 2 {
+		startDiscussion(room)
+	}
+}
+
+func startDiscussion(room *structures.Room) {
+	room.DiscussionActive = true
+	room.Duration = 10 * time.Minute
+	room.StartTime = time.Now()
+
+	// отправка стартового сообщения
+	informing.SendDiscussionStart(room)
+
+	// запуск таймера
+	go discussionTimer(room)
+}
+
+// в логике таймера
+func discussionTimer(room *structures.Room) {
+	ticker := time.NewTicker(1 * time.Minute) // отправляем обновления раз в минуту
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			remaining := room.Duration - time.Since(room.StartTime)
+			if remaining <= 0 {
+				informing.SendDiscussionEnd(room)
+				return
+			}
+			informing.SendTimerUpdate(room, remaining)
 		}
 	}
 }

@@ -4,14 +4,16 @@ import (
 	"awesomeChat/internal/structures"
 	"awesomeChat/package/logger"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"strconv"
+	"time"
 )
 
 func InformUserLeft(room *structures.Room, username string) {
 	msg := structures.Message{
 		Type:     "userLeft",
-		Content:  []byte(username + " left the chatroom"),
+		Content:  username + " left the chatroom",
 		Username: "default",
 	}
 
@@ -32,7 +34,7 @@ func InformUserLeft(room *structures.Room, username string) {
 func InformUserJoined(room *structures.Room, username string) {
 	msg := structures.Message{
 		Type:     "userJoined",
-		Content:  []byte(username + " joined the chatroom"),
+		Content:  username + " joined the chatroom",
 		Username: "default",
 	}
 
@@ -53,7 +55,7 @@ func InformUserJoined(room *structures.Room, username string) {
 func SetRoomName(ws *websocket.Conn, roomname string, roomNumber int) {
 	msg := structures.Message{
 		Type:     "setRoomName",
-		Content:  []byte("[Room #" + strconv.Itoa(roomNumber) + "]    " + roomname),
+		Content:  "[Room #" + strconv.Itoa(roomNumber) + "]    " + roomname,
 		Username: "default",
 	}
 
@@ -67,4 +69,48 @@ func SetRoomName(ws *websocket.Conn, roomname string, roomNumber int) {
 	if err != nil {
 		logger.Log.Errorln(err)
 	}
+}
+
+//func SendSystemMessage(room *structures.Room, content string) {
+//	msg := structures.Message{
+//		Type:     "system",
+//		Content:  content,
+//		Username: "system",
+//	}
+//
+//	sendToAll(room, msg)
+//}
+
+func sendToAll(room *structures.Room, msg structures.Message) {
+	messageToSend, _ := json.Marshal(msg)
+
+	for _, user := range room.Users {
+		user.Connection.WriteMessage(websocket.TextMessage, messageToSend)
+	}
+}
+
+func SendTimerUpdate(room *structures.Room, remaining time.Duration) {
+	msg := structures.Message{
+		Type: "timer",
+		Content: fmt.Sprintf("Time left: %02d:%02d",
+			int(remaining.Minutes()),
+			int(remaining.Seconds())%60),
+	}
+	sendToAll(room, msg)
+}
+
+func SendDiscussionEnd(room *structures.Room) {
+	msg := structures.Message{
+		Type:    "discussion_end",
+		Content: "Discussion ended! Rate your opponent",
+	}
+	sendToAll(room, msg)
+}
+
+func SendDiscussionStart(room *structures.Room) {
+	msg := structures.Message{
+		Type:    "discussion_start",
+		Content: "Discussion started! You have 10 minutes",
+	}
+	sendToAll(room, msg)
 }

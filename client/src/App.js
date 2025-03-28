@@ -135,26 +135,7 @@ const App = () => {
             console.log('Socket Error: ', error);
             setError('An error occurred while connecting to the chat room');
         };
-        newSocket.onmessage = (e) => {
-            const messageObj = JSON.parse(e.data);
-            if (messageObj.type === 'usual') {
-                setMessageHistory((prevMessages) => [
-                    ...prevMessages,
-                    { content: messageObj.content, username: messageObj.username }
-                ]);
-            } else if (messageObj.type === 'userLeft' || messageObj.type === 'userJoined') {
-                const decodedContent = atob(messageObj.content);
-                setMessageHistory((prevMessages) => [
-                    ...prevMessages,
-                    { content: '', username: decodedContent }
-                ]);
-            } else if (messageObj.type === 'setRoomName') {
-                const decodedContent = atob(messageObj.content);
-                setRoomName(decodedContent);
-            } else {
-                console.error('Неизвестный тип сообщения:', messageObj.type);
-            }
-        };
+        // убрали обработчик onmessage
         setSocket(newSocket);
     };
 

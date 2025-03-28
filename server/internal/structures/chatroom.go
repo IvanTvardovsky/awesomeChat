@@ -1,6 +1,10 @@
 package structures
 
-import "github.com/gorilla/websocket"
+import (
+	"github.com/gorilla/websocket"
+	"sync"
+	"time"
+)
 
 type ChatRequest struct {
 	ChatNumber int `json:"chatNumber"`
@@ -21,6 +25,12 @@ type Room struct {
 	MaxUsers   int
 	TopicID    int
 	SubtopicID int
+
+	ReadyUsers       map[string]bool
+	DiscussionActive bool
+	StartTime        time.Time
+	Duration         time.Duration
+	Mu               sync.Mutex
 }
 
 type RoomForList struct {
@@ -34,8 +44,8 @@ type RoomForList struct {
 }
 
 type Message struct {
-	Type     string `json:"type"`
-	Content  []byte `json:"content"`
+	Type     string `json:"type"` // "usual", "system", "ready_check", "timer", "discussion_end"
+	Content  string `json:"content"`
 	Username string `json:"username"`
 	UserID   string `json:"userID"`
 }

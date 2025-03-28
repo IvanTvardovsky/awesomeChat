@@ -133,6 +133,7 @@ func CreateChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 		MaxUsers:   maxUsers,
 		TopicID:    topicID,
 		SubtopicID: subtopicID,
+		ReadyUsers: make(map[string]bool),
 	}
 	(*rooms)[chatNumber] = room
 	logger.Log.Traceln("Created room №" + strconv.Itoa(chatNumber))
