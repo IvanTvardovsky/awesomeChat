@@ -17,18 +17,7 @@ func InformUserLeft(room *structures.Room, username string) {
 		Username: "default",
 	}
 
-	messageToSend, err := json.Marshal(msg)
-	if err != nil {
-		logger.Log.Errorln(err)
-	}
-	logger.Log.Traceln("Sending:", string(messageToSend))
-
-	for _, user := range room.Users {
-		err = user.Connection.WriteMessage(websocket.TextMessage, messageToSend)
-		if err != nil {
-			logger.Log.Errorln(err)
-		}
-	}
+	sendToAll(room, msg)
 }
 
 func InformUserJoined(room *structures.Room, username string) {
@@ -38,18 +27,7 @@ func InformUserJoined(room *structures.Room, username string) {
 		Username: "default",
 	}
 
-	messageToSend, err := json.Marshal(msg)
-	if err != nil {
-		logger.Log.Errorln(err)
-	}
-	logger.Log.Traceln("Sending:", string(messageToSend))
-
-	for _, user := range room.Users {
-		err = user.Connection.WriteMessage(websocket.TextMessage, messageToSend)
-		if err != nil {
-			logger.Log.Errorln(err)
-		}
-	}
+	sendToAll(room, msg)
 }
 
 func SetRoomName(ws *websocket.Conn, roomname string, roomNumber int) {
@@ -85,6 +63,7 @@ func sendToAll(room *structures.Room, msg structures.Message) {
 	messageToSend, _ := json.Marshal(msg)
 
 	for _, user := range room.Users {
+		logger.Log.Traceln("Sending message:", string(messageToSend))
 		user.Connection.WriteMessage(websocket.TextMessage, messageToSend)
 	}
 }
@@ -111,6 +90,15 @@ func SendDiscussionStart(room *structures.Room) {
 	msg := structures.Message{
 		Type:    "discussion_start",
 		Content: "Discussion started! You have 10 minutes",
+	}
+	sendToAll(room, msg)
+}
+
+func SendUserReady(room *structures.Room, username string) {
+	msg := structures.Message{
+		Type:     "system",
+		Content:  fmt.Sprintf("User %s is ready to start!", username),
+		Username: "system",
 	}
 	sendToAll(room, msg)
 }

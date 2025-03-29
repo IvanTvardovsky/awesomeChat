@@ -22,6 +22,8 @@ func AuthMiddleware() gin.HandlerFunc {
 }
 
 func main() {
+	logger.Log.Infoln("Sleeping 10s for database to start...")
+	time.Sleep(10 * time.Second)
 	cfg := config.GetConfig()
 	db := database.InitPostgres(cfg)
 	//redisClient := database.InitRedis(cfg)

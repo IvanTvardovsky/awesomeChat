@@ -69,6 +69,8 @@ func handleReadyCheck(room *structures.Room, conn *websocket.Conn, username stri
 
 	room.ReadyUsers[username] = true
 
+	informing.SendUserReady(room, username)
+
 	if len(room.ReadyUsers) == 2 {
 		startDiscussion(room)
 	}

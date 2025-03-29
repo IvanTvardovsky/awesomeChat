@@ -6,6 +6,7 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
     const [isDiscussionActive, setIsDiscussionActive] = useState(false);
     const [showRatingForm, setShowRatingForm] = useState(false);
     const messagesEndRef = useRef(null);
+   // const [roomName, setRoomName] = useState('AwesomeChat');
 
     useEffect(() => {
         if (isDiscussionActive) {
@@ -20,8 +21,17 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
             const message = JSON.parse(event.data);
 
             switch(message.type) {
+                case 'system':
+                    setMessageHistory(prev => [...prev, {
+                        ...message,
+                        username: 'system' // форматируем как системное
+                    }]);
+                    break;
                 case 'discussion_start':
-                    setMessageHistory(prev => [...prev, message]);
+                    setMessageHistory(prev => [...prev, {
+                        ...message,
+                        username: 'system' // форматируем как системное
+                    }]);
                     setIsDiscussionActive(true);
                     setMessageInput('');
                     break;
@@ -37,11 +47,11 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
                 case 'userLeft':
                     setMessageHistory(prev => [...prev, {
                         ...message,
-                        username: 'system' // Форматируем как системное
+                        username: 'system' // форматируем как системное
                     }]);
                     break;
                 case 'setRoomName':
-                    onUpdateRoomName(message.content);
+                    //onUpdateRoomName(message.content);
                     break;
                 case 'usual':
                     setMessageHistory(prev => [...prev, message]);
@@ -119,9 +129,9 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
                             borderRadius: 1
                         }}
                     >
-                        {['userJoined', 'userLeft', 'system'].includes(message.type) ? (
+                        {['userJoined', 'userLeft', 'system', 'discussion_start'].includes(message.type) ? (
                             <Typography variant="caption" color="textSecondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <span>🔵</span>
+                                <span>⚙️</span>
                                 <span>[SYSTEM]: {message.content}</span>
                             </Typography>
                         ) : message.type === 'timer' ? (

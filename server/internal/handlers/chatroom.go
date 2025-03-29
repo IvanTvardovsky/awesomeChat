@@ -43,7 +43,6 @@ func ConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 	users := &((*rooms)[chatNumber].Users)
 
 	if len(*users) < room.MaxUsers {
-		informing.InformUserJoined(room, username)
 		currentUser := structures.ChatUser{
 			Name:       username,
 			Connection: websocket,
@@ -58,6 +57,7 @@ func ConnectToChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 
 	logger.Log.Traceln(fmt.Sprintf("Current amount of users in room %d: %d", chatNumber, len((*rooms)[chatNumber].Users)))
 	informing.SetRoomName(websocket, room.Name, room.ID)
+	informing.InformUserJoined(room, username)
 	go myws.Reader(websocket, room, rooms)
 }
 
@@ -141,5 +141,6 @@ func CreateChatroom(c *gin.Context, rooms *map[int]*structures.Room) {
 
 	logger.Log.Traceln(fmt.Sprintf("Current amount of users in room %d: %d", chatNumber, len((*rooms)[chatNumber].Users)))
 	informing.SetRoomName(websocket, room.Name, room.ID)
+	informing.InformUserJoined(room, username)
 	go myws.Reader(websocket, room, rooms)
 }
