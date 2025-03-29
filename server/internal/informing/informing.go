@@ -13,7 +13,7 @@ import (
 func InformUserLeft(room *structures.Room, username string) {
 	msg := structures.Message{
 		Type:     "userLeft",
-		Content:  username + " left the chatroom",
+		Content:  username + " покинул комнату",
 		Username: "default",
 	}
 
@@ -23,7 +23,7 @@ func InformUserLeft(room *structures.Room, username string) {
 func InformUserJoined(room *structures.Room, username string) {
 	msg := structures.Message{
 		Type:     "userJoined",
-		Content:  username + " joined the chatroom",
+		Content:  username + " присоединился",
 		Username: "default",
 	}
 
@@ -33,7 +33,7 @@ func InformUserJoined(room *structures.Room, username string) {
 func SetRoomName(ws *websocket.Conn, roomname string, roomNumber int) {
 	msg := structures.Message{
 		Type:     "setRoomName",
-		Content:  "[Room #" + strconv.Itoa(roomNumber) + "]    " + roomname,
+		Content:  "[Комната #" + strconv.Itoa(roomNumber) + "]    " + roomname,
 		Username: "default",
 	}
 
@@ -78,7 +78,7 @@ func sendToOne(user *structures.ChatUser, msg structures.Message) {
 func SendTimerUpdate(room *structures.Room, remaining time.Duration) {
 	msg := structures.Message{
 		Type: "timer",
-		Content: fmt.Sprintf("Time left: %02d:%02d",
+		Content: fmt.Sprintf("Осталось времени: %02d:%02d",
 			int(remaining.Minutes()),
 			int(remaining.Seconds())%60),
 	}
@@ -88,7 +88,7 @@ func SendTimerUpdate(room *structures.Room, remaining time.Duration) {
 func SendDiscussionEnd(room *structures.Room) {
 	msg := structures.Message{
 		Type:    "discussion_end",
-		Content: "Discussion ended! Rate your opponent",
+		Content: "Обсуждение закончено! Оцените вашего оппонента",
 	}
 	sendToAll(room, msg)
 }

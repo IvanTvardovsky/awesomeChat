@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, TextField, Typography, Container, Box, Paper, Rating } from '@mui/material';
+import { Button, TextField, Typography, Container, Box, Paper, Rating, Stack } from '@mui/material';
 
 const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessageHistory }) => {
     const [messageInput, setMessageInput] = useState('');
     const [isDiscussionActive, setIsDiscussionActive] = useState(false);
     const [showRatingForm, setShowRatingForm] = useState(false);
+    const [ratings, setRatings] = useState({ politeness: 0, argumentsQuality: 0 });
     const messagesEndRef = useRef(null);
    // const [roomName, setRoomName] = useState('AwesomeChat');
 
@@ -97,13 +98,17 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
         }
     };
 
-    const handleRatingSubmit = (value) => {
+    const handleRatingSubmit = () => {
         socket.send(JSON.stringify({
             type: 'rate',
-            score: value,
+            ratings: {
+                politeness: ratings.politeness,
+                argumentsQuality: ratings.argumentsQuality
+            },
             username: localStorage.getItem('username')
         }));
         setShowRatingForm(false);
+        setRatings({ politeness: 0, argumentsQuality: 0 });
     };
 
     return (
@@ -111,7 +116,7 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h5">{roomName}</Typography>
                 <Button variant="contained" color="secondary" onClick={onLeaveChat}>
-                    Leave Chat
+                    Покинуть чат
                 </Button>
             </Box>
 
@@ -163,12 +168,31 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
 
             {showRatingForm && (
                 <Box sx={{ mt: 2, textAlign: 'center' }}>
-                    <Typography variant="h6">Rate the discussion</Typography>
-                    <Rating
-                        size="large"
-                        onChange={(e, value) => handleRatingSubmit(value)}
-                        sx={{ mt: 1 }}
-                    />
+                    <Typography variant="h6">Оцените дискуссию</Typography>
+                    <Stack spacing={3} sx={{ mt: 2, maxWidth: 300, margin: '0 auto' }}>
+                        <div>
+                            <Typography>Вежливость</Typography>
+                            <Rating
+                                size="large"
+                                value={ratings.politeness}
+                                onChange={(e, value) => setRatings(prev => ({ ...prev, politeness: value }))}
+                            />
+                        </div>
+                        <div>
+                            <Typography>Качество аргументов</Typography>
+                            <Rating
+                                size="large"
+                                value={ratings.argumentsQuality}
+                                onChange={(e, value) => setRatings(prev => ({ ...prev, argumentsQuality: value }))}
+                            />
+                        </div>
+                        <Button
+                            variant="contained"
+                            onClick={handleRatingSubmit}
+                            disabled={!ratings.politeness || !ratings.argumentsQuality}>
+                            Отправить оценку
+                        </Button>
+                    </Stack>
                 </Box>
             )}
 
@@ -191,7 +215,7 @@ const ChatComponent = ({ socket, messageHistory, roomName, onLeaveChat, setMessa
                         showRatingForm
                     }
                 >
-                    Send
+                    Отправить
                 </Button>
             </Box>
         </Container>
