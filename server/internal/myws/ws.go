@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -47,45 +48,86 @@ func Reader(conn *websocket.Conn, room *structures.Room, rooms *map[int]*structu
 
 		switch msg.Type {
 		case "usual":
-			for _, user := range room.Users {
-				if user.Connection != conn { // отправить сообщение всем пользователям в комнате, кроме отправителя
-					err = user.Connection.WriteMessage(websocket.TextMessage, p)
-					if err != nil {
-						logger.Log.Errorln(err)
-					}
-				}
-			}
+			handleUsualMessage(room, conn, p)
 		case "ready_check":
 			handleReadyCheck(room, conn, msg.Username)
 		case "rate":
-			//handleRating(room, msg)
+			handleRating(room, msg)
+		}
+	}
+}
+
+func handleUsualMessage(room *structures.Room, conn *websocket.Conn, msg []byte) {
+	for _, user := range room.Users {
+		if user.Connection != conn { // отправить сообщение всем пользователям в комнате, кроме отправителя
+			err := user.Connection.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				logger.Log.Errorln(err)
+			}
 		}
 	}
 }
 
 func handleReadyCheck(room *structures.Room, conn *websocket.Conn, username string) {
 	room.Mu.Lock()
-	defer room.Mu.Unlock()
-
 	room.ReadyUsers[username] = true
+	room.Mu.Unlock()
 
 	informing.SendUserReady(room, username)
 
+	logger.Log.Tracef("Ready users: %d", len(room.ReadyUsers))
 	if len(room.ReadyUsers) == 2 {
 		startDiscussion(room)
 	}
 }
 
-func startDiscussion(room *structures.Room) {
-	room.DiscussionActive = true
-	room.Duration = 10 * time.Minute
-	room.StartTime = time.Now()
+func handleRating(room *structures.Room, msg structures.Message) {
+	logger.Log.Traceln("i will place this info in db: ", msg)
+	//todo
+}
 
-	// отправка стартового сообщения
+func startDiscussion(room *structures.Room) {
+	room.Mu.Lock()
+	defer room.Mu.Unlock()
+
+	logger.Log.Tracef("Starting discussion %d", room.ID)
+
+	// получаем тезисы для текущего сабтопика
+	theses := getThesesForSubtopic(room.SubtopicID)
+	if len(theses) < 2 {
+		logger.Log.Errorf("No theses found for subtopic %d", room.SubtopicID)
+		return
+	}
+
+	// перемешиваем тезисы для случайного распределения
+	rand.Shuffle(len(theses), func(i, j int) {
+		theses[i], theses[j] = theses[j], theses[i]
+	})
+
+	logger.Log.Tracef("Theses: %v", theses)
+
+	room.AssignedTheses = theses
+	room.UserTheses = make(map[string]string)
+
+	for i, user := range room.Users {
+		if i >= room.MaxUsers {
+			break
+		}
+		room.UserTheses[user.Name] = theses[i]
+	}
+	// отправка темы и тезисов
 	informing.SendDiscussionStart(room)
+
+	room.DiscussionActive = true
+	room.Duration = 10*time.Minute + time.Second // секунда нужна, чтобы показывалось целое число, а не 8:59 и т.д.
+	room.StartTime = time.Now()
 
 	// запуск таймера
 	go discussionTimer(room)
+}
+
+func getThesesForSubtopic(subtopicID int) []string {
+	return structures.ThesesDB[subtopicID]
 }
 
 // в логике таймера

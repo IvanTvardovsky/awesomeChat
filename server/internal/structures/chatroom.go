@@ -31,6 +31,9 @@ type Room struct {
 	StartTime        time.Time
 	Duration         time.Duration
 	Mu               sync.Mutex
+
+	AssignedTheses []string          // назначенные тезисы для дискуссии
+	UserTheses     map[string]string // маппинг пользователь -> тезис
 }
 
 type RoomForList struct {
@@ -44,7 +47,7 @@ type RoomForList struct {
 }
 
 type Message struct {
-	Type     string `json:"type"` // "usual", "system", "ready_check", "timer", "discussion_end"
+	Type     string `json:"type"` // "usual", "system", "ready_check", "timer", "discussion_start", "discussion_end"
 	Content  string `json:"content"`
 	Username string `json:"username"`
 	UserID   string `json:"userID"`

@@ -68,6 +68,13 @@ func sendToAll(room *structures.Room, msg structures.Message) {
 	}
 }
 
+func sendToOne(user *structures.ChatUser, msg structures.Message) {
+	messageToSend, _ := json.Marshal(msg)
+
+	logger.Log.Traceln("Sending message:", string(messageToSend))
+	user.Connection.WriteMessage(websocket.TextMessage, messageToSend)
+}
+
 func SendTimerUpdate(room *structures.Room, remaining time.Duration) {
 	msg := structures.Message{
 		Type: "timer",
@@ -86,12 +93,52 @@ func SendDiscussionEnd(room *structures.Room) {
 	sendToAll(room, msg)
 }
 
+func sendTheses(room *structures.Room) {
+	for _, user := range room.Users {
+		msg := structures.Message{
+			Type:    "system",
+			Content: fmt.Sprintf("Ваша точка зрения на это обсуждение: %s", room.UserTheses[user.Name]),
+		}
+		sendToOne(user, msg)
+	}
+}
+
 func SendDiscussionStart(room *structures.Room) {
+	time.Sleep(2 * time.Second)
 	msg := structures.Message{
-		Type:    "discussion_start",
-		Content: "Discussion started! You have 10 minutes",
+		Type:    "system",
+		Content: fmt.Sprintf("Тема: %s", structures.SubtopicDB[room.SubtopicID]),
 	}
 	sendToAll(room, msg)
+	time.Sleep(3 * time.Second)
+	msg = structures.Message{
+		Type:    "system",
+		Content: "Противоположные тезисы:",
+	}
+	sendToAll(room, msg)
+	time.Sleep(3 * time.Second)
+	msg = structures.Message{
+		Type:    "system",
+		Content: fmt.Sprintf("1. %s", structures.ThesesDB[room.SubtopicID][0]),
+	}
+	sendToAll(room, msg)
+	time.Sleep(4 * time.Second)
+	msg = structures.Message{
+		Type:    "system",
+		Content: fmt.Sprintf("2. %s", structures.ThesesDB[room.SubtopicID][1]),
+	}
+	sendToAll(room, msg)
+	time.Sleep(4 * time.Second)
+
+	sendTheses(room)
+	time.Sleep(5 * time.Second)
+
+	msg = structures.Message{
+		Type:    "discussion_start",
+		Content: "🎉 Дискуссия началась!",
+	}
+	sendToAll(room, msg)
+	time.Sleep(2 * time.Second)
 }
 
 func SendUserReady(room *structures.Room, username string) {
